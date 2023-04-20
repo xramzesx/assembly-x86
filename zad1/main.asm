@@ -12,6 +12,8 @@ nfirst	DB 30, ?, 30 DUP('$')
 nsecond	DB 30, ?, 30 DUP('$')
 oper	DB 30, ?, 30 DUP('$')
 
+; =[UTILS]================================== ;
+nline	DB 10, 13, '$'
 
 DATA_SEG ENDS
 
@@ -20,6 +22,7 @@ DATA_SEG ENDS
 CODE_SEG SEGMENT
 
 START1:
+
 	; LOAD STACK SEGMENT ;
 	; TO SS ;
 	MOV	AX, SEG STACK_SEG
@@ -34,142 +37,43 @@ START1:
 	MOV	AH,9	; DISPLAY TEXT DS:DX
 	INT	21h;
 
-	; READ SINGLE BYTE ;
-
-	MOV	DX, OFFSET t2
-	CALL	print
+	; READ INPUT ;
 
 	CALL	read
 	CALL	trim_buffer
 	MOV	DX, OFFSET t3
 
-	MOV	DX, OFFSET nline
-	CALL	print
-
-	MOV	DX, OFFSET buff + 2
-	CALL 	print
-	
 	; GET BUFFER LENGTH ;
 
 	XOR	AX, AX	; clear ax
 	XOR	CX, CX	; clear cx
 
-	MOV 	SI, OFFSET buff	; get start pointer
+	MOV 	SI, OFFSET buff			; get start pointer
 	MOV	AL, byte ptr ds:[SI + 1]	; copy length value to ax
 	
 	MOV	CX, AX	; set string length
 	
 	MOV	SI, OFFSET buff + 2	; set pointer to first character
-	; call	parse_input
 
-	; =[PARSING INPUT] =============;
-
-	; SET INITIAL STATE ;
-	XOR	BL, BL
-	MOV	BL, 0h
-	; MOV	BL, 1h
+	call 	parse_input
 	
-	remove_spaces:
-		PUSH	CX
-		
-		; mov	dx, OFFSET t2
-		; call	print
+	; =[PRINT INPUT]============= ;
 
+	CALL	print_nl
 
-		POP	CX
+	MOV	dx, offset oper
+	CALL	print
 
-		MOV	AL, byte ptr [SI]
-		CMP	AL, ' '		; check if space
-		JE	remove_spaces_end
-		CMP	AL, 09h		; check if tabulation
-		JE	remove_spaces_end
+	CALL	print_nl
 
-		JMP	parse_hub	; If not whitespace
+	MOV	dx, offset nfirst
+	CALL	print
 
-		
-		; if (si != ' ') then goto parse_first
-		
-		remove_spaces_end:
-			INC	SI
-			LOOP	remove_spaces
-			JMP 	parse_finish
-		; RET
+	CALL	print_nl
 
-	parse_hub:
-		mov	dx, offset t2
-		call	print
+	MOV	dx, offset nsecond
+	CALL	print
 
-		INC	BL
-
-		CMP	BL, 1H
-		JE	parse_first
-
-		CMP	BL, 2H
-		JE	parse_operator
-
-		CMP	BL, 3H
-		JE	parse_second
-
-		JMP 	parse_finish
-
-	
-	parse_first:
-		MOV	DI, OFFSET nfirst
-		JMP 	parse_word
-
-	parse_operator:
-		MOV	DI, OFFSET oper
-		JMP	parse_word
-	
-	parse_second:
-		MOV	DI, OFFSET nsecond
-		JMP	parse_word
-
-	parse_word:
-		mov 	dx, offset t1
-		call	print
-		; JMP parse_finish
-		PUSH	CX
-
-		MOV	AL, BYTE PTR [SI]
-		MOV	BYTE PTR [DI], AL
-
-		; ; if (si != ' ') then goto parse_first
-
-		INC	DI
-		INC	SI
-		POP	CX
-		
-		MOV	AL, byte ptr ds:[SI]
-		
-		CMP	AL, ' '		; check if space
-		JE	remove_spaces
-		
-		CMP	AL, 09h		; check if tabulation
-		JE	remove_spaces
-
-		CMP	AL, 0dh		; check if carriage return
-		JE	parse_hub
-
-		LOOP	parse_word
-
-
-	parse_finish:
-
-
-
-		MOV	dx, offset nfirst
-		CALL	print
-
-		CALL	print_nl
-
-		MOV	dx, offset oper
-		CALL	print
-
-		CALL	print_nl
-
-		MOV	dx, offset nsecond
-		CALL	print
 
 
 	; END PROGRAM ;
@@ -219,11 +123,11 @@ read ENDP
 
 trim_buffer PROC
 	MOV	BP, OFFSET buff + 1
-	MOV	BL, BYTE PTR CS:[BP]
+	MOV	BL, BYTE PTR DS:[BP]
 	ADD	BL, 1
 	XOR	BH, BH
 	ADD	BP, BX
-	MOV	BYTE PTR CS:[BP], '$'
+	MOV	BYTE PTR DS:[BP], '$'
 
 	RET
 trim_buffer ENDP
@@ -245,16 +149,16 @@ cmp_str PROC
 	cmp_str_loop:
 		push 	cx
 
-		mov al, byte ptr ds:[si] ; Wczytaj znak z pierwszego stringu do rejestru AL
-		mov ah, byte ptr ds:[di] ; Wczytaj znak z drugiego stringu do rejestru AH
-		cmp al, ah ; Porównaj znaki
-
-
+		mov 	al, byte ptr ds:[si] ; Wczytaj znak z pierwszego stringu do rejestru AL
+		mov 	ah, byte ptr ds:[di] ; Wczytaj znak z drugiego stringu do rejestru AH
+		cmp 	al, ah ; Porównaj znaki
+		JNE	cmp_str_false
 		INC	SI
 		INC	DI
 
 		pop 	cx
 		loop 	cmp_str_loop
+		JMP	cmp_str_true
 
 	cmp_str_true:
 
@@ -281,54 +185,84 @@ parse_input PROC
 	; 2h	- parse operator
 	; 3h	- parse second
 
-	; ; SET INITIAL STATE ;
-	; XOR	BL, BL
-	; MOV	BL, 1h
+	MOV	AX, SEG DATA_SEG	; Load data segment
 	
-	; remove_spaces:
-	; 	PUSH	CX
+	; SET INITIAL STATE ;
+	XOR	BL, BL
+	MOV	BL, 0h
+
+	remove_spaces:
+		; PUSH	CX
+
+		; POP	CX
+
+		MOV	AL, byte ptr ds:[SI]
+		CMP	AL, ' '		; check if space
+		JE	remove_spaces_end
+		CMP	AL, 09h		; check if tabulation
+		JE	remove_spaces_end
+
+		JMP	parse_hub	; If not whitespace
+
+		remove_spaces_end:
+			INC	SI
+			LOOP	remove_spaces
+			JMP 	parse_finish
+
+	parse_hub:
+		INC	BL
+
+		CMP	BL, 1H
+		JE	parse_first
+
+		CMP	BL, 2H
+		JE	parse_operator
+
+		CMP	BL, 3H
+		JE	parse_second
+
+		JMP 	parse_finish
+
+	
+	parse_first:
+		MOV	DI, OFFSET nfirst
+		nop
+		JMP	parse_word
+		nop
+	parse_operator:
+		MOV	DI, OFFSET oper
+		JMP	parse_word
+	
+	parse_second:
+		MOV	DI, OFFSET nsecond
+		JMP	parse_word
+
+	parse_word:
+		PUSH	CX
+
+		MOV	AL, BYTE PTR DS:[SI]
+		MOV	BYTE PTR DS:[DI], AL
+
+		; ; if (si != ' ') then goto parse_first
+
+		INC	DI
+		INC	SI
+		POP	CX
 		
-	; 	; mov	dx, OFFSET t2
-	; 	; call	print
-
-	; 	MOV	AL, [SI]
-	; 	CMP	AL, ' '
-	; 	JNE	parse_first
-	; 	; if (si != ' ') then goto parse_first
+		MOV	AL, BYTE PTR DS:[SI]
 		
+		CMP	AL, ' '		; check if space
+		JE	remove_spaces
+	
+		CMP	AL, 09h		; check if tabulation
+		JE	remove_spaces
 
-	; 	INC	SI
-	; 	POP	CX
-	; 	LOOP	remove_spaces
-	; 	JMP parse_finish
-	; 	; RET
+		CMP	AL, 0dh		; check if carriage return
+		JE	parse_hub
 
-	; parse_hub:
-	; 	CMP	BL, 1H
-	; 	JE	parse_first
+		LOOP	parse_word
 
-	; 	CMP	BL, 2H
-	; 	JE	parse_first
-
-	; 	CMP	BL, 3H
-	; 	JE	parse_first
-
-	; 	JMP parse_finish
-
-	; parse_first:
-	; 	mov dx, offset t1
-	; 	call print
-	; 	JMP parse_finish
-	; 	; PUSH	CX
-
-	; 	; ; if (si != ' ') then goto parse_first
-
-	; 	; INC	SI
-	; 	; INC	DI
-	; 	; POP	CX
-	; 	; LOOP	parse_first
-
-	; parse_finish:
+	parse_finish:
 
 		RET
 
