@@ -7,8 +7,14 @@ t2	DB "To jest drugi tekst!", 10, 13, "$"
 t3	DB "A to jest test $"
 
 ; =[BUFFERS]================================ ;
+buff	DB 30, ?, 30 DUP('$')
+nfirst	DB 30, ?, 30 DUP('$')
+nsecond	DB 30, ?, 30 DUP('$')
+oper	DB 30, ?, 30 DUP('$')
+
 
 DATA_SEG ENDS
+
 ;--[CODE SEGMENT]---------------------------- ;
 
 CODE_SEG SEGMENT
@@ -49,12 +55,122 @@ START1:
 	XOR	CX, CX	; clear cx
 
 	MOV 	SI, OFFSET buff	; get start pointer
-	MOV	AL, [SI + 1]	; copy length value to ax
+	MOV	AL, byte ptr ds:[SI + 1]	; copy length value to ax
 	
 	MOV	CX, AX	; set string length
 	
 	MOV	SI, OFFSET buff + 2	; set pointer to first character
-	call	parse_input
+	; call	parse_input
+
+	; =[PARSING INPUT] =============;
+
+	; SET INITIAL STATE ;
+	XOR	BL, BL
+	MOV	BL, 0h
+	; MOV	BL, 1h
+	
+	remove_spaces:
+		PUSH	CX
+		
+		; mov	dx, OFFSET t2
+		; call	print
+
+
+		POP	CX
+
+		MOV	AL, byte ptr [SI]
+		CMP	AL, ' '		; check if space
+		JE	remove_spaces_end
+		CMP	AL, 09h		; check if tabulation
+		JE	remove_spaces_end
+
+		JMP	parse_hub	; If not whitespace
+
+		
+		; if (si != ' ') then goto parse_first
+		
+		remove_spaces_end:
+			INC	SI
+			LOOP	remove_spaces
+			JMP 	parse_finish
+		; RET
+
+	parse_hub:
+		mov	dx, offset t2
+		call	print
+
+		INC	BL
+
+		CMP	BL, 1H
+		JE	parse_first
+
+		CMP	BL, 2H
+		JE	parse_operator
+
+		CMP	BL, 3H
+		JE	parse_second
+
+		JMP 	parse_finish
+
+	
+	parse_first:
+		MOV	DI, OFFSET nfirst
+		JMP 	parse_word
+
+	parse_operator:
+		MOV	DI, OFFSET oper
+		JMP	parse_word
+	
+	parse_second:
+		MOV	DI, OFFSET nsecond
+		JMP	parse_word
+
+	parse_word:
+		mov 	dx, offset t1
+		call	print
+		; JMP parse_finish
+		PUSH	CX
+
+		MOV	AL, BYTE PTR [SI]
+		MOV	BYTE PTR [DI], AL
+
+		; ; if (si != ' ') then goto parse_first
+
+		INC	DI
+		INC	SI
+		POP	CX
+		
+		MOV	AL, byte ptr ds:[SI]
+		
+		CMP	AL, ' '		; check if space
+		JE	remove_spaces
+		
+		CMP	AL, 09h		; check if tabulation
+		JE	remove_spaces
+
+		CMP	AL, 0dh		; check if carriage return
+		JE	parse_hub
+
+		LOOP	parse_word
+
+
+	parse_finish:
+
+
+
+		MOV	dx, offset nfirst
+		CALL	print
+
+		CALL	print_nl
+
+		MOV	dx, offset oper
+		CALL	print
+
+		CALL	print_nl
+
+		MOV	dx, offset nsecond
+		CALL	print
+
 
 	; END PROGRAM ;
 
@@ -82,6 +198,7 @@ print ENDP
 ; 	threat it like an example to
 ; 	properly printing new line
 print_nl PROC
+	MOV	AX, SEG DATA_SEG	; Load data segment
 	MOV	DX, OFFSET nline
 	CALL	print
 	RET
@@ -128,8 +245,8 @@ cmp_str PROC
 	cmp_str_loop:
 		push 	cx
 
-		mov al, [si] ; Wczytaj znak z pierwszego stringu do rejestru AL
-		mov ah, [di] ; Wczytaj znak z drugiego stringu do rejestru AH
+		mov al, byte ptr ds:[si] ; Wczytaj znak z pierwszego stringu do rejestru AL
+		mov ah, byte ptr ds:[di] ; Wczytaj znak z drugiego stringu do rejestru AH
 		cmp al, ah ; Porównaj znaki
 
 
@@ -164,45 +281,54 @@ parse_input PROC
 	; 2h	- parse operator
 	; 3h	- parse second
 
-	; SET INITIAL STATE ;
-	XOR	BL, BL
-	MOV	BL, 1h
+	; ; SET INITIAL STATE ;
+	; XOR	BL, BL
+	; MOV	BL, 1h
 	
-	remove_spaces:
-		PUSH	CX
+	; remove_spaces:
+	; 	PUSH	CX
 		
-		; mov	dx, OFFSET t2
-		; call	print
+	; 	; mov	dx, OFFSET t2
+	; 	; call	print
 
-		MOV	AL, [SI]
-		CMP	AL, ' '
-		JNE	parse_first
-		; if (si != ' ') then goto parse_first
+	; 	MOV	AL, [SI]
+	; 	CMP	AL, ' '
+	; 	JNE	parse_first
+	; 	; if (si != ' ') then goto parse_first
 		
 
-		INC	SI
-		POP	CX
-		LOOP	remove_spaces
-		JMP parse_finish
-		; RET
+	; 	INC	SI
+	; 	POP	CX
+	; 	LOOP	remove_spaces
+	; 	JMP parse_finish
+	; 	; RET
 
-	parse_hub:
-		CMP	BL, 1H
-		JE	parse_first
+	; parse_hub:
+	; 	CMP	BL, 1H
+	; 	JE	parse_first
 
-		CMP	BL, 2H
-		JE	parse_first
+	; 	CMP	BL, 2H
+	; 	JE	parse_first
 
-		CMP	BL, 3H
-		JE	parse_first
+	; 	CMP	BL, 3H
+	; 	JE	parse_first
 
-		JMP parse_finish
+	; 	JMP parse_finish
 
-	parse_first:
-		mov dx, offset t1
-		call print
-		JMP parse_finish
-	parse_finish:
+	; parse_first:
+	; 	mov dx, offset t1
+	; 	call print
+	; 	JMP parse_finish
+	; 	; PUSH	CX
+
+	; 	; ; if (si != ' ') then goto parse_first
+
+	; 	; INC	SI
+	; 	; INC	DI
+	; 	; POP	CX
+	; 	; LOOP	parse_first
+
+	; parse_finish:
 
 		RET
 
