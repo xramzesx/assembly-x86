@@ -123,27 +123,11 @@ START1:
 
 	; COMPARE STRINGS ;
 
-	XOR	CX, CX	; clear cx
-	XOR	AX, AX	; clear ax
+	MOV	SI, OFFSET nfirst  ; set si pointer to first character
+	MOV	DI, OFFSET vzero   ; set di pointer to first character
+	CALL	cmp_str
 
-	MOV	AL, BYTE PTR DS:[vzero + 1] ; get length
-	MOV	CX, AX			    ; set length
-	
-	MOV	AX, SEG DATA_SEG	; Load data segment
-	MOV	DS, AX			; move loaded data to ds
-	
-	MOV	AX, SEG DATA_SEG	; Load data segment
-	MOV	ES, AX			; move loaded data to es
-
-
-	MOV	SI, OFFSET nfirst + 2 ; set si pointer to first character
-	MOV	DI, OFFSET vzero + 2 ; set di pointer to first character
-
-
-	CLD			; clear flag to compare forward 
-	
-	REPE	CMPSB		; repeat while equal compare string byte-by-byte
-	JE	end_program
+	JE	end_program_2
 
 	MOV	DX, OFFSET vhundred + 2 ; print example data
 	call	print
@@ -283,30 +267,45 @@ exit ENDP
 ; 	MOV di, OFFSET destination_string
 ; 	CALL cmp_str
 ; 	<...> do with buff whatever you want <...>
-;
+; [NOTE]:
+; 	this procedure return result as ZF flag
 cmp_str PROC
-	cmp_str_loop:
-		push 	cx
+	PUSH	CX
+	PUSH	AX
 
-		mov 	al, byte ptr ds:[si] ; Wczytaj znak z pierwszego stringu do rejestru AL
-		mov 	ah, byte ptr ds:[di] ; Wczytaj znak z drugiego stringu do rejestru AH
-		cmp 	al, ah ; Porównaj znaki
-		JNE	cmp_str_false
-		INC	SI
-		INC	DI
+	XOR	CX, CX	; clear cx
+	XOR	AX, AX	; clear ax
+	
+	cmp_str_len:
+		MOV	AL, BYTE PTR DS:[SI + 1]
+		MOV	AH, BYTE PTR DS:[DI + 1]
+		CMP	AL, AH
+		JNE	cmp_str_end
 
-		pop 	cx
-		loop 	cmp_str_loop
-		JMP	cmp_str_true
+	cmp_str_equal:
+		XOR	CX, CX ; clear CX
+		XOR	AX, AX ; clear AX
 
-	cmp_str_true:
+		MOV	AL, BYTE PTR DS:[SI + 1] ; get length
+		MOV	CX, AX			 ; set length
+		
+		MOV	AX, SEG DATA_SEG	; Load data segment
+		MOV	DS, AX			; move loaded data to ds
+		
+		MOV	AX, SEG DATA_SEG	; Load data segment
+		MOV	ES, AX			; move loaded data to es
 
-		RET
+		ADD	SI, 2			; skip value bytes
+		ADD	DI, 2			; skip value bytes
 
-	cmp_str_false:
+		CLD				; clear flag to compare forward 
+		REPE	CMPSB			; repeat while equal compare string byte-by-byte
+		
+	cmp_str_end:
 
-		RET
-	RET
+		POP	AX
+		POP	CX
+		RET	
 cmp_str ENDP
 
 
