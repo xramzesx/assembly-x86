@@ -48,6 +48,10 @@ veighty		DB 80d, 13d, "osiemdziesiat$"
 vninety		DB 90d, 16d, "dziewiecdziesiat$"
 vhundred	DB 100d, 4d, "sto$"
 
+oplus		DB "+", 4d, "plus$"
+ominus		DB "-", 5d, "minus$"
+otimes		DB "*", 4d, "razy$"
+
 DATA_SEG ENDS
 
 ;--[CODE SEGMENT]---------------------------- ;
@@ -101,6 +105,17 @@ START1:
 
 	MOV	SI, OFFSET nsecond
 	CALL	get_length
+
+	; GET VALUE ;
+	
+	MOV	SI, OFFSET nfirst
+	CALL	get_value
+
+	; MOV	SI, OFFSET oper
+	; CALL	get_value_oper
+
+	MOV	SI, OFFSET nsecond
+	CALL	get_value
 
 	; =[PRINT INPUT]============= ;
 
@@ -215,14 +230,14 @@ trim_buffer ENDP
 ; main string starts from source_offset + 2
 ; 
 get_length PROC
+	PUSH	SI
+	PUSH	DI
 	PUSH	AX
 	PUSH	BX
 	PUSH	CX
 	
-	MOV	DI, SI		; save si begin to di
-	; MOV	SI, SI + 2	; point si to actual string
-	INC	SI
-	INC	SI
+	MOV	DI, SI	; save si begin to di
+	ADD	SI, 2	; point si to actual string
 	
 	XOR	AX, AX	; CLEAR AX
 	XOR	BX, BX	; CLEAR BX
@@ -247,13 +262,92 @@ get_length PROC
 		MOV	AL, BL
 		MOV	BYTE PTR DS:[DI], AL
 
-
 		POP	CX
 		POP	BX
 		POP	AX
+		POP	DI
+		POP	SI
 		RET
 
 get_length ENDP
+
+; [USAGE]:
+; 	MOV  SI, OFFSET source_offset
+; 	CALL get_value
+; [NOTE]:
+; 	this procedure parse string value to 
+get_value PROC
+	PUSH 	SI
+	PUSH 	DI
+	PUSH	AX
+	
+	XOR	AX, AX	; clear AX
+
+	MOV	DI, OFFSET vzero
+	CALL	check_number
+	JE	get_value_end
+
+	MOV	DI, OFFSET vone
+	CALL	check_number
+	JE	get_value_end
+
+	MOV	DI, OFFSET vtwo
+	CALL	check_number
+	JE	get_value_end
+
+	MOV	DI, OFFSET vthree
+	CALL	check_number
+	JE	get_value_end
+
+	MOV	DI, OFFSET vfour
+	CALL	check_number
+	JE	get_value_end
+	
+	MOV	DI, OFFSET vfive
+	CALL	check_number
+	JE	get_value_end
+
+	MOV	DI, OFFSET vsix
+	CALL	check_number
+	JE	get_value_end
+
+	MOV	DI, OFFSET vseven
+	CALL	check_number
+	JE	get_value_end
+
+	MOV	DI, OFFSET veight
+	CALL	check_number
+	JE	get_value_end
+
+	MOV	DI, OFFSET vnine
+	CALL	check_number
+	JE	get_value_end
+
+	get_value_invalid:
+		POP	AX
+		POP	DI
+		POP	SI
+
+		; MOV	DX, OFFSET error_parse
+		; call throw_exception
+		
+		RET
+
+	get_value_end:
+
+		MOV	BYTE PTR DS:[SI], AL
+
+		POP	AX
+		POP	DI
+		POP	SI
+		RET
+get_value ENDP
+
+check_number PROC
+	MOV	AL, BYTE PTR DS:[DI]
+	CALL	cmp_str
+	RET
+check_number ENDP
 
 exit PROC
 	MOV	AL, 0	; set program return value
