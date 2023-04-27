@@ -148,7 +148,22 @@ START1:
 	MOV	DX, OFFSET vhundred + 2 ; print example data
 	call	print
 
+	
 end_program:
+
+
+	XOR	AX, AX
+
+	MOV	AL, BYTE PTR DS:[nfirst + 1]
+	MOV	AH, BYTE PTR DS:[vzero + 1]
+
+	CMP	AL, AH
+	JE	end_program_2
+
+	MOV	DX, OFFSET t3
+	call	print
+
+end_program_2:
 
 	; END PROGRAM ;
 
