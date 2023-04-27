@@ -107,7 +107,36 @@ START1:
 	MOV	dx, offset nsecond
 	CALL	print
 
+	CALL	print_nl
 
+	; COMPARE STRINGS ;
+
+	XOR	CX, CX	; clear cx
+	XOR	AX, AX	; clear ax
+
+	MOV	AL, BYTE PTR DS:[vzero + 1] ; get length
+	MOV	CX, AX			    ; set length
+	
+	MOV	AX, SEG DATA_SEG	; Load data segment
+	MOV	DS, AX			; move loaded data to ds
+	
+	MOV	AX, SEG DATA_SEG	; Load data segment
+	MOV	ES, AX			; move loaded data to es
+
+
+	MOV	SI, OFFSET nfirst + 2 ; set si pointer to first character
+	MOV	DI, OFFSET vzero + 2 ; set di pointer to first character
+
+
+	CLD			; clear flag to compare forward 
+	
+	REPE	CMPSB		; repeat while equal compare string byte-by-byte
+	JE	end_program
+
+	MOV	DX, OFFSET vhundred + 2 ; print example data
+	call	print
+
+end_program:
 
 	; END PROGRAM ;
 
