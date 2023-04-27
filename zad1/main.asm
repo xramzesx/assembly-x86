@@ -94,17 +94,17 @@ START1:
 
 	CALL	print_nl
 
-	MOV	dx, offset oper
+	MOV	dx, offset oper + 2
 	CALL	print
 
 	CALL	print_nl
 
-	MOV	dx, offset nfirst
+	MOV	dx, offset nfirst + 2
 	CALL	print
 
 	CALL	print_nl
 
-	MOV	dx, offset nsecond
+	MOV	dx, offset nsecond + 2
 	CALL	print
 
 	CALL	print_nl
@@ -287,16 +287,16 @@ parse_input PROC
 
 	
 	parse_first:
-		MOV	DI, OFFSET nfirst
+		MOV	DI, OFFSET nfirst + 2
 		nop
 		JMP	parse_word
 		nop
 	parse_operator:
-		MOV	DI, OFFSET oper
+		MOV	DI, OFFSET oper + 2
 		JMP	parse_word
 	
 	parse_second:
-		MOV	DI, OFFSET nsecond
+		MOV	DI, OFFSET nsecond + 2
 		JMP	parse_word
 
 	parse_word:
