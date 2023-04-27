@@ -8,9 +8,9 @@ t3	DB "A to jest test $"
 
 ; =[BUFFERS]================================ ;
 buff	DB 30, ?, 30 DUP('$')
-nfirst	DB 30, ?, 30 DUP('$')
-nsecond	DB 30, ?, 30 DUP('$')
-oper	DB 30, ?, 30 DUP('$')
+nfirst	DB 30, 0, 30 DUP('$')
+nsecond	DB 30, 0, 30 DUP('$')
+oper	DB 30, 0, 30 DUP('$')
 
 ; =[UTILS]================================== ;
 nline	DB 10, 13, '$'
@@ -90,6 +90,18 @@ START1:
 
 	call 	parse_input
 	
+
+	; GET LENGTH ;
+	
+	MOV	SI, OFFSET nfirst
+	CALL	get_length
+
+	MOV	SI, OFFSET oper
+	CALL	get_length
+
+	MOV	SI, OFFSET nsecond
+	CALL	get_length
+
 	; =[PRINT INPUT]============= ;
 
 	CALL	print_nl
@@ -193,6 +205,56 @@ trim_buffer PROC
 
 	RET
 trim_buffer ENDP
+
+
+; [USAGE]:
+; 	MOV  SI, OFFSET source_offset
+; 	CALL get_length
+; 	<...> do with buff whatever you want <...>
+; [NOTE]:
+; first 2 bytes of source_offset contains data like: value and length
+; main string starts from source_offset + 2
+; 
+get_length PROC
+	PUSH	AX
+	PUSH	BX
+	PUSH	CX
+	
+	MOV	DI, SI		; save si begin to di
+	; MOV	SI, SI + 2	; point si to actual string
+	INC	SI
+	INC	SI
+	
+	XOR	AX, AX	; CLEAR AX
+	XOR	BX, BX	; CLEAR BX
+
+	MOV	CX, 30	; SET BUFFOR MAX LENGTH
+	
+	get_length_loop:
+
+		MOV	AL, BYTE PTR DS:[SI]
+		MOV	AH, "$"
+
+		CMP	AL, AH
+		JE	get_length_end
+
+		INC	BL
+		INC	SI
+
+		LOOP	get_length_loop
+
+	get_length_end:
+		INC	DI
+		MOV	AL, BL
+		MOV	BYTE PTR DS:[DI], AL
+
+
+		POP	CX
+		POP	BX
+		POP	AX
+		RET
+
+get_length ENDP
 
 exit PROC
 	MOV	AL, 0	; set program return value
