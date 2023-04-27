@@ -15,6 +15,39 @@ oper	DB 30, ?, 30 DUP('$')
 ; =[UTILS]================================== ;
 nline	DB 10, 13, '$'
 
+; =[TRANSLATION]============================= ;
+; vname		db value, length, name
+
+vzero		DB 0d, 4d, "zero$"
+vone		DB 1d, 5d, "jeden$"
+vtwo		DB 2d, 3d, "dwa$"
+vthree		DB 3d, 4d, "trzy$"
+vfour		DB 4d, 6d, "cztery$"
+vfive		DB 5d, 4d, "piec$"
+vsix		DB 6d, 5d, "szesc$"
+vseven		DB 7d, 6d, "siedem$"
+veight		DB 8d, 5d, "osiem$"
+vnine		DB 9d, 8d, "dziewiec$"
+vten		DB 10d, 8d, "dziesiec$"
+veleven		DB 11d, 10d, "jedenascie$"
+vtwelve		DB 12d, 9d, "dwanascie$"
+vthirteen	DB 13d, 10d, "trzynascie$"
+vfourteen	DB 14d, 11d, "czternascie$"
+vfiveteen	DB 15d, 10d, "pietnascie$"
+vsixteen	DB 16d, 10d, "szesnascie$"
+vseventeen	DB 17d, 12d, "siedemnascie$"
+veighteen	DB 18d, 11d, "osiemnascie$"
+vnineteen	DB 19d, 14d, "dziewietnascie$"
+vtwenty		DB 20d, 10d, "dwadziescia$"
+vthirty		DB 30d, 11d, "trzydziesci$"
+vfourty		DB 40d, 12d, "czterdziesci$"
+vfivety		DB 50d, 11d, "piecdziesiat$"
+vsixty		DB 60d, 13d, "szescdziesiat$"
+vseventy	DB 70d, 14d, "siedemdziesiat$"
+veighty		DB 80d, 13d, "osiemdziesiat$"
+vninety		DB 90d, 16d, "dziewiecdziesiat$"
+vhundred	DB 100d, 4d, "sto$"
+
 DATA_SEG ENDS
 
 ;--[CODE SEGMENT]---------------------------- ;
