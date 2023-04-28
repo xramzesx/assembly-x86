@@ -16,6 +16,13 @@ oper	DB 30, 0, 30 DUP('$')
 nline	DB 10, 13, '$'
 
 ; =[TRANSLATION]============================= ;
+; STRING :=	db value, length, name
+; where:
+; 	value - integer value
+; 	length - length of name string without '$' sign
+; 	name - number or operator name, normal string
+; 
+; Strings defined here are in convention:
 ; vname		db value, length, name
 
 vzero		DB 0d, 4d, "zero$"
@@ -117,8 +124,6 @@ main_parse_buffer:
 	MOV	SI, OFFSET nfirst
 	CALL	get_value
 
-	; MOV	SI, OFFSET oper
-	; CALL	get_value_oper
 
 	MOV	SI, OFFSET nsecond
 	CALL	get_value
@@ -281,7 +286,10 @@ get_length ENDP
 ; 	MOV  SI, OFFSET source_offset
 ; 	CALL get_value
 ; [NOTE]:
-; 	this procedure parse string value to 
+; 	this procedure parse int value from given string;
+; [Attention!]
+; 	this procedure require STRING structure defined 
+; 	at the begginnig of this file 
 get_value PROC
 	PUSH 	SI
 	PUSH 	DI
@@ -349,18 +357,17 @@ get_value PROC
 		RET
 get_value ENDP
 
+; [USAGE]:
+; 	MOV  SI, OFFSET source_offset
+; 	CALL get_value
+; [NOTE]
+; 	this procedure is mainly used in get_value proc.
 check_number PROC
 	MOV	AL, BYTE PTR DS:[DI]
 	CALL	cmp_str
 	RET
 check_number ENDP
 
-exit PROC
-	MOV	AL, 0	; set program return value
-	MOV	AH, 4CH	; set DOS code (exit)
-	INT	21H	; DOS interrupt
-	RET
-exit ENDP
 
 ; [USAGE]:
 ; 	MOV si, OFFSET source_string
@@ -507,6 +514,13 @@ parse_input PROC
 		RET
 
 parse_input ENDP
+
+exit PROC
+	MOV	AL, 0	; set program return value
+	MOV	AH, 4CH	; set DOS code (exit)
+	INT	21H	; DOS interrupt
+	RET
+exit ENDP
 
 CODE_SEG ENDS
 
