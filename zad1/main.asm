@@ -370,6 +370,8 @@ exit ENDP
 ; [NOTE]:
 ; 	this procedure return result as ZF flag
 cmp_str PROC
+	PUSH	SI
+	PUSH	DI
 	PUSH	CX
 	PUSH	AX
 
@@ -391,8 +393,6 @@ cmp_str PROC
 		
 		MOV	AX, SEG DATA_SEG	; Load data segment
 		MOV	DS, AX			; move loaded data to ds
-		
-		MOV	AX, SEG DATA_SEG	; Load data segment
 		MOV	ES, AX			; move loaded data to es
 
 		ADD	SI, 2			; skip value bytes
@@ -405,6 +405,8 @@ cmp_str PROC
 
 		POP	AX
 		POP	CX
+		POP	DI
+		POP	SI
 		RET	
 cmp_str ENDP
 
