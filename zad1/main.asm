@@ -73,6 +73,7 @@ START1:
 	MOV	DX, OFFSET t1
 	MOV	AH,9	; DISPLAY TEXT DS:DX
 	INT	21h;
+main_read_buffer:
 
 	; READ INPUT ;
 
@@ -88,10 +89,15 @@ START1:
 	MOV 	SI, OFFSET buff			; get start pointer
 	MOV	AL, byte ptr ds:[SI + 1]	; copy length value to ax
 	
-	MOV	CX, AX	; set string length
-	
-	MOV	SI, OFFSET buff + 2	; set pointer to first character
+	CMP	AL, 0
+	JE	main_read_buffer
 
+main_parse_buffer:
+
+	; PARSE INPUT BUFFER ;
+
+	MOV	CX, AX	; set string length
+	MOV	SI, OFFSET buff + 2	; set pointer to first character
 	call 	parse_input
 	
 
