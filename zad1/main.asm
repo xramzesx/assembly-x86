@@ -59,6 +59,13 @@ oplus		DB "+", 4d, "plus$"
 ominus		DB "-", 5d, "minus$"
 otimes		DB "*", 4d, "razy$"
 
+; =[ERRORS]================================== ;
+
+error_parse_number	DB "Unknown number", 10, 13, "$" 
+error_parse_operator	DB "Unknown operator", 10, 13, "$"
+error_not_enough	DB "Invalid number of arguments", 10, 13, "$"
+error_calculate		DB "Unknown operator", 10, 13, "$"
+
 DATA_SEG ENDS
 
 ;--[CODE SEGMENT]---------------------------- ;
@@ -201,9 +208,15 @@ print ENDP
 ; 	threat it like an example to
 ; 	properly printing new line
 print_nl PROC
+	PUSH	AX
+	PUSH	DX
+	
 	MOV	AX, SEG DATA_SEG	; Load data segment
 	MOV	DX, OFFSET nline
 	CALL	print
+
+	POP	DX
+	POP	AX
 	RET
 print_nl ENDP
 
@@ -342,8 +355,8 @@ get_value PROC
 		POP	DI
 		POP	SI
 
-		; MOV	DX, OFFSET error_parse
-		; call throw_exception
+		MOV	DX, OFFSET error_parse_number
+		CALL 	throw_exception
 		
 		RET
 
@@ -514,6 +527,17 @@ parse_input PROC
 		RET
 
 parse_input ENDP
+
+; [USAGE]:
+; 	MOV	DX, OFFSET error_message
+; 	CALL	throw_exception
+; 
+throw_exception PROC
+	CALL	print_nl
+	CALL	print
+	CALL	exit
+	RET
+throw_exception ENDP
 
 exit PROC
 	MOV	AL, 0	; set program return value
