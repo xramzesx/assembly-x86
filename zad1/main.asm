@@ -12,6 +12,11 @@ nfirst	DB 30, 0, 30 DUP('$')
 nsecond	DB 30, 0, 30 DUP('$')
 oper	DB 30, 0, 30 DUP('$')
 
+; [NOTE]: result offset stores a result from 
+; 	  calculations, so it need to have
+; 	  at least 2 bytes
+result	DW 0
+
 ; =[UTILS]================================== ;
 nline	DB 10, 13, '$'
 
@@ -154,7 +159,10 @@ main_parse_buffer:
 
 	CALL	print_nl
 
-	; COMPARE STRINGS ;
+	; =[CALCULATIONS]============ ;
+
+	CALL	calculate
+
 
 	MOV	SI, OFFSET nfirst  ; set si pointer to first character
 	MOV	DI, OFFSET vzero   ; set di pointer to first character
@@ -430,6 +438,65 @@ cmp_str PROC
 		RET	
 cmp_str ENDP
 
+
+calculate PROC
+	PUSH	AX
+	PUSH	BX
+	PUSH	CX
+
+	XOR	AX, AX
+	XOR	BX, BX
+	
+	MOV	AL, BYTE PTR DS:[nfirst]
+	MOV	BL, BYTE PTR DS:[nsecond]
+
+	MOV	SI, OFFSET oper
+	
+	calculate_add:
+
+		MOV	DI, OFFSET oplus
+		CALL	cmp_str
+		JNE	calculate_sub
+		
+		ADD	AX, BX
+		MOV	WORD PTR DS:[result], AX
+		JMP	calculate_end
+
+	calculate_sub:
+	
+		MOV	DI, OFFSET ominus
+		CALL	cmp_str
+		JNE	calculate_mult
+	
+		SUB	AX, BX
+		MOV	WORD PTR DS:[result], AX
+		JMP	calculate_end
+
+	calculate_mult:
+
+		MOV	DI, OFFSET otimes
+		CALL	cmp_str
+		JNE	calculate_err
+
+		MOV	CX, BX
+
+		MUL	CX
+
+		MOV	WORD PTR DS:[result], AX
+		JMP	calculate_end
+
+	calculate_err:
+		MOV	DX, OFFSET error_parse_operator
+		CALL	throw_exception
+		RET
+
+	calculate_end:
+
+		POP	CX
+		POP	BX
+		POP	AX
+		RET
+calculate ENDP
 
 ; [USAGE]:
 ; 	MOV si, OFFSET source_string
