@@ -46,7 +46,7 @@ veleven		DB 11d, 10d, "jedenascie$"
 vtwelve		DB 12d, 9d, "dwanascie$"
 vthirteen	DB 13d, 10d, "trzynascie$"
 vfourteen	DB 14d, 11d, "czternascie$"
-vfiveteen	DB 15d, 10d, "pietnascie$"
+vfifteen	DB 15d, 10d, "pietnascie$"
 vsixteen	DB 16d, 10d, "szesnascie$"
 vseventeen	DB 17d, 12d, "siedemnascie$"
 veighteen	DB 18d, 11d, "osiemnascie$"
@@ -54,7 +54,7 @@ vnineteen	DB 19d, 14d, "dziewietnascie$"
 vtwenty		DB 20d, 10d, "dwadziescia$"
 vthirty		DB 30d, 11d, "trzydziesci$"
 vfourty		DB 40d, 12d, "czterdziesci$"
-vfivety		DB 50d, 11d, "piecdziesiat$"
+vfifty		DB 50d, 11d, "piecdziesiat$"
 vsixty		DB 60d, 13d, "szescdziesiat$"
 vseventy	DB 70d, 14d, "siedemdziesiat$"
 veighty		DB 80d, 13d, "osiemdziesiat$"
@@ -64,6 +64,10 @@ vhundred	DB 100d, 4d, "sto$"
 oplus		DB "+", 4d, "plus$"
 ominus		DB "-", 5d, "minus$"
 otimes		DB "*", 4d, "razy$"
+
+; =[MESSAGES]================================ ;
+
+message_intro		DB "Wprowadz dzialanie:" ,10, 13, "$"
 
 ; =[ERRORS]================================== ;
 
@@ -86,13 +90,11 @@ START1:
 	MOV 	SS, AX
 	MOV	SP, OFFSET WSTOS1
 	
-	; DISPLAY TEXT ;
-	; LOAD TO AX ;
-	MOV 	AX, SEG t1
-	MOV	DS, AX
-	MOV	DX, OFFSET t1
-	MOV	AH,9	; DISPLAY TEXT DS:DX
-	INT	21h;
+	; DISPLAY STARTUP MESSAGE ;
+
+	MOV	DX, OFFSET message_intro
+	CALL	PRINT
+
 main_read_buffer:
 
 	; READ INPUT ;
@@ -116,7 +118,7 @@ main_parse_buffer:
 
 	; PARSE INPUT BUFFER ;
 
-	MOV	CX, AX	; set string length
+	MOV	CX, AX			; set string length
 	MOV	SI, OFFSET buff + 2	; set pointer to first character
 	call 	parse_input
 	
@@ -141,61 +143,19 @@ main_parse_buffer:
 	MOV	SI, OFFSET nsecond
 	CALL	get_value
 
-	; =[PRINT INPUT]============= ;
-
-	CALL	print_nl
-
-	MOV	dx, offset oper + 2
-	CALL	print
-
-	CALL	print_nl
-
-	MOV	dx, offset nfirst + 2
-	CALL	print
-
-	CALL	print_nl
-
-	MOV	dx, offset nsecond + 2
-	CALL	print
-
 	CALL	print_nl
 
 	; =[CALCULATIONS]============ ;
 
 	CALL	calculate
 
-
-	MOV	SI, OFFSET nfirst  ; set si pointer to first character
-	MOV	DI, OFFSET vzero   ; set di pointer to first character
-	CALL	cmp_str
-
-	JE	end_program_2
-
-	MOV	DX, OFFSET vhundred + 2 ; print example data
-	call	print
-
-	
-end_program:
-
-
-	XOR	AX, AX
-
-	MOV	AL, BYTE PTR DS:[nfirst + 1]
-	MOV	AH, BYTE PTR DS:[vzero + 1]
-
-	CMP	AL, AH
-	JE	end_program_2
-
-	MOV	DX, OFFSET t3
-	call	print
-
-end_program_2:
+	CALL	print_result
 
 	; END PROGRAM ;
 
 	MOV	AL,0	; set value that OS return
 	MOV	AH,4CH 	; value for ending program
-	INT	21h		; DOS interrupt
+	INT	21h	; DOS interrupt
 
 
 ;=== PROCEDURES ===============================================;
@@ -245,7 +205,8 @@ print_space ENDP
 ; [USAGE]:
 ; 	CALL read
 ; 	<...> do with buff whatever you want <...>
-;
+; [DESC]:
+;	Read input from user via DOS interrupt
 read PROC
 	MOV	AX, SEG DATA_SEG ; Load data segment
 	MOV	DS, AX		 ; move loaded segment to ds
@@ -255,6 +216,10 @@ read PROC
 	RET
 read ENDP
 
+; [USAGE]:
+; 	CALL trim_buffer
+; 	<...> do with buff whatever you want <...>
+;
 trim_buffer PROC
 	MOV	BP, OFFSET buff + 1
 	MOV	BL, BYTE PTR DS:[BP]
@@ -266,6 +231,318 @@ trim_buffer PROC
 	RET
 trim_buffer ENDP
 
+
+; [USAGE]:
+; 	CALL print_result
+; [NOTE]:
+; 	this function print result offset as 
+; 	string translated to polish
+print_result PROC
+	PUSH	AX
+	MOV	AX, WORD PTR DS:[result]
+	CALL	print_number
+	POP	AX
+	RET
+print_result ENDP
+
+print_number PROC
+	PUSH	AX
+
+	; NEGATIVE NUMBER ;
+	
+	print_negative:
+		CMP	AX, 0
+		JGE	print_0_19
+		
+		MOV	CX, -1d
+		IMUL	CX
+
+		MOV	DX, OFFSET ominus + 2
+		CALL	print_single_number
+		
+	; NUMBER FROM 0 TO 19 ;
+
+	print_0_19:
+		CMP	AL, 0
+		JNE	print_1
+		MOV	DX, OFFSET vzero + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_1:
+		
+		CMP	AL, 1
+		JNE	print_2
+		MOV	DX, OFFSET vone + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_2:
+		
+		CMP	AL, 2
+		JNE	print_3
+		MOV	DX, OFFSET vtwo + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_3:
+		
+		CMP	AL, 3
+		JNE	print_4
+		MOV	DX, OFFSET vthree + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_4:
+		
+		CMP	AL, 4
+		JNE	print_5
+		MOV	DX, OFFSET vfour + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_5:
+		
+		CMP	AL, 5
+		JNE	print_6
+		MOV	DX, OFFSET vfive + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_6:
+		
+		CMP	AL, 6
+		JNE	print_7
+		MOV	DX, OFFSET vsix + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_7:
+		
+		CMP	AL, 7
+		JNE	print_8
+		MOV	DX, OFFSET vseven + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_8:
+		
+		CMP	AL, 8
+		JNE	print_9
+		MOV	DX, OFFSET veight + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_9:
+		
+		CMP	AL, 9
+		JNE	print_10
+		MOV	DX, OFFSET vnine + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_10:
+		
+		CMP	AL, 10d
+		JNE	print_11
+		MOV	DX, OFFSET vten + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_11:
+		
+		CMP	AL, 11d
+		JNE	print_12
+		MOV	DX, OFFSET veleven + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_12:
+		
+		CMP	AL, 12d
+		JNE	print_13
+		MOV	DX, OFFSET vtwelve + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_13:
+		
+		CMP	AL, 13d
+		JNE	print_14
+		MOV	DX, OFFSET vthirteen + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_14:
+		
+		CMP	AL, 14
+		JNE	print_15
+		MOV	DX, OFFSET vfourteen + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_15:
+
+		CMP	AL, 15
+		JNE	print_16
+		MOV	DX, OFFSET vfifteen + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_16:
+		
+		CMP	AL, 16
+		JNE	print_17
+		MOV	DX, OFFSET vsixteen + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_17:
+		
+		CMP	AL, 17
+		JNE	print_18
+		MOV	DX, OFFSET vseventeen + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_18:
+		
+		CMP	AL, 18
+		JNE	print_19
+		MOV	DX, OFFSET veighteen + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+		print_19:
+		
+		CMP	AL, 19
+		JNE	print_20_99
+		MOV	DX, OFFSET vnineteen + 2
+		CALL	print_single_number
+		JMP	print_number_end
+
+
+	; NUMBER FROM 20 TO 99 ;
+
+	print_20_99:
+		; MOV	BX, AX
+		; [NOTE]:
+		; 	DIV instruction in this case 
+		; 	operate on AX register
+		; 	AL := store result of integer division
+		; 	AH := store rest of integer division (modulo)
+
+		PUSH	BX
+		
+		MOV	BL, 10
+		DIV	BL
+
+		CMP	AL, 0d
+		JE	print_number_end
+
+		XOR	BX, BX
+		MOV	BL, AL
+		MOV	AL, AH
+		MOV	AH, BL
+
+		POP	BX
+
+		CMP	AH, 2
+		JNE	print_30
+		MOV	DX, OFFSET vtwenty + 2
+		CALL	print_single_number
+		CMP	AL, 0
+		JNE	print_1
+		JE	print_number_end
+
+		print_30:
+		
+		CMP	AH, 3
+		JNE	print_40
+		MOV	DX, OFFSET vthirty + 2
+		CALL	print_single_number
+		CMP	AL, 0
+		JNE	print_1
+		JE	print_number_end
+
+		print_40:
+		
+		CMP	AH, 4
+		JNE	print_50
+		MOV	DX, OFFSET vfourty + 2
+		CALL	print_single_number
+		CMP	AL, 0
+		JNE	print_1
+		JE	print_number_end
+
+		print_50:
+		
+		CMP	AH, 5
+		JNE	print_60
+		MOV	DX, OFFSET vfifty + 2
+		CALL	print_single_number
+		CMP	AL, 0
+		JNE	print_1
+		JE	print_number_end
+
+		print_60:
+		
+		CMP	AH, 6
+		JNE	print_70
+		MOV	DX, OFFSET vsixty + 2
+		CALL	print_single_number
+		CMP	AL, 0
+		JNE	print_1
+		JE	print_number_end
+
+		print_70:
+		
+		CMP	AH, 7
+		JNE	print_80
+		MOV	DX, OFFSET vseventy + 2
+		CALL	print_single_number
+		CMP	AL, 0
+		JNE	print_1
+		JE	print_number_end
+
+		print_80:
+		
+		CMP	AH, 8
+		JNE	print_90
+		MOV	DX, OFFSET veighty + 2
+		CALL	print_single_number
+		CMP	AL, 0
+		JNE	print_1
+		JE	print_number_end
+
+		print_90:
+		
+		CMP	AH, 9
+		JNE	print_30
+		MOV	DX, OFFSET vnineteen + 2
+		CALL	print_single_number
+		CMP	AL, 0
+		JNE	print_1
+		JE	print_number_end
+
+
+	; FINISH PRINTING ;
+	print_number_end:
+
+		POP	AX
+		RET	
+print_number ENDP
+
+print_single_number PROC
+	PUSH	AX
+
+	MOV	AX, SEG DATA_SEG
+	CALL	print
+	CALL	print_space
+
+	POP	AX
+	RET
+print_single_number ENDP
 
 ; [USAGE]:
 ; 	MOV  SI, OFFSET source_offset
