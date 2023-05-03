@@ -19,6 +19,7 @@ result	DW 0
 
 ; =[UTILS]================================== ;
 nline	DB 10, 13, '$'
+nspace	DB  " $"
 
 ; =[TRANSLATION]============================= ;
 ; STRING :=	db value, length, name
@@ -211,10 +212,8 @@ print PROC
 	RET
 print ENDP
 
-; [NOTE]:
-; 	this procedure doesn't work,
-; 	threat it like an example to
-; 	properly printing new line
+; [USAGE]:
+; 	CALL	print_nl
 print_nl PROC
 	PUSH	AX
 	PUSH	DX
@@ -227,6 +226,21 @@ print_nl PROC
 	POP	AX
 	RET
 print_nl ENDP
+
+; [USAGE]:
+; 	CALL	print_space
+print_space PROC
+	PUSH	AX
+	PUSH	DX
+	
+	MOV	AX, SEG DATA_SEG	; Load data segment
+	MOV	DX, OFFSET nspace	; Load space offset
+	CALL	print
+
+	POP	DX
+	POP	AX
+	RET
+print_space ENDP
 
 ; [USAGE]:
 ; 	CALL read
