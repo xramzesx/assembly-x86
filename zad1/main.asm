@@ -67,13 +67,13 @@ otimes		DB "*", 4d, "razy$"
 
 ; =[MESSAGES]================================ ;
 
-message_intro		DB "Wprowadz dzialanie:" ,10, 13, "$"
+message_intro		DB "Wprowadz slowny opis dzialania: $"
 
 ; =[ERRORS]================================== ;
 
 error_parse_number	DB "Unknown number", 10, 13, "$" 
 error_parse_operator	DB "Unknown operator", 10, 13, "$"
-error_not_enough	DB "Invalid number of arguments", 10, 13, "$"
+error_invalid_no_args	DB "Invalid number of arguments", 10, 13, "$"
 error_calculate		DB "Unknown operator", 10, 13, "$"
 
 DATA_SEG ENDS
@@ -89,7 +89,7 @@ START1:
 	MOV	AX, SEG STACK_SEG
 	MOV 	SS, AX
 	MOV	SP, OFFSET WSTOS1
-	
+
 	; DISPLAY STARTUP MESSAGE ;
 
 	MOV	DX, OFFSET message_intro
@@ -810,9 +810,6 @@ parse_input PROC
 	MOV	BL, 0h
 
 	remove_spaces:
-		; PUSH	CX
-
-		; POP	CX
 
 		MOV	AL, byte ptr ds:[SI]
 		CMP	AL, ' '		; check if space
@@ -839,7 +836,10 @@ parse_input PROC
 		CMP	BL, 3H
 		JE	parse_second
 
-		JMP 	parse_finish
+		CMP	CL, 0
+		JE	parse_finish
+		
+		JMP 	skip_spaces
 
 	
 	parse_first:
@@ -879,10 +879,57 @@ parse_input PROC
 		JE	parse_hub
 
 		LOOP	parse_word
+		
+
+		; CHECK IF FIRST ARGUMMENT SET ;
+
+		XOR	AX, AX
+		MOV	AX, OFFSET nfirst + 1
+		CMP	AX, 0
+		JE	parse_exception
+
+		; CHECK IF OPERATOR ARGUMMENT SET ;
+
+		XOR	AX, AX
+		MOV	AX, OFFSET oper + 1
+		CMP	AX, 0
+		JE	parse_exception
+
+		; CHECK IF SECOND ARGUMMENT SET ;
+
+		XOR	AX, AX
+		MOV	AX, OFFSET nsecond + 1
+		CMP	AX, 0
+		JE	parse_exception
+
+		JMP	parse_finish
+
+	parse_exception:
+		MOV	DX, OFFSET error_invalid_no_args
+		CALL	throw_exception
+
+	skip_spaces:
+
+		MOV	AL, byte ptr ds:[SI]
+		CMP	AL, ' '		; check if space
+		JE	skip_spaces_end
+		CMP	AL, 09h		; check if tabulation
+		JE	skip_spaces_end
+		CMP	AL, '$'		; check if end
+		JE	parse_finish
+
+		JMP	parse_exception
+
+		skip_spaces_end:
+			INC	SI
+			LOOP	skip_spaces
+			JMP 	parse_finish
+
+		
 
 	parse_finish:
-
 		RET
+
 
 parse_input ENDP
 
