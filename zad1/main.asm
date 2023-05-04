@@ -101,7 +101,6 @@ main_read_buffer:
 
 	CALL	read
 	CALL	trim_buffer
-	MOV	DX, OFFSET t3
 
 	; GET BUFFER LENGTH ;
 
@@ -165,10 +164,12 @@ main_parse_buffer:
 ;	CALL	print
 ;
 print PROC
+	PUSH	AX
 	MOV	AX, SEG DATA_SEG	; Load data segment
 	MOV	DS, AX		; move loaded data to ds
 	MOV	AH, 09h		; set DOS code (print)
 	INT	21h		; DOS interrupt
+	POP	AX
 	RET
 print ENDP
 
@@ -208,11 +209,20 @@ print_space ENDP
 ; [DESC]:
 ;	Read input from user via DOS interrupt
 read PROC
+	PUSH	AX
+	PUSH	DS
+	PUSH	DX
+	
 	MOV	AX, SEG DATA_SEG ; Load data segment
 	MOV	DS, AX		 ; move loaded segment to ds
 	MOV	DX, OFFSET buff	 ; load buffer to dx
 	MOV	AH, 0ah		 ; set DOS code (read)
 	INT	21H		 ; DOS interrupt
+	
+	POP	DX
+	POP	DS
+	POP	AX
+	
 	RET
 read ENDP
 
@@ -533,6 +543,12 @@ print_number PROC
 		RET	
 print_number ENDP
 
+; [USAGE]
+; 	MOV	DX, OFFSET vnumber + 2
+; 	CALL	print_single_number
+; [DESC]:
+; 	this function print single word digit to 
+; 	standard output
 print_single_number PROC
 	PUSH	AX
 
@@ -583,7 +599,7 @@ get_length PROC
 	get_length_end:
 		INC	DI
 		MOV	AL, BL
-		MOV	BYTE PTR DS:[DI], AL
+		MOV	BYTE PTR DS:[DI], AL	; set string length
 
 		POP	CX
 		POP	BX
@@ -608,6 +624,8 @@ get_value PROC
 	PUSH	AX
 	
 	XOR	AX, AX	; clear AX
+
+	; CHECK NUMBERS ;
 
 	MOV	DI, OFFSET vzero
 	CALL	check_number
@@ -661,7 +679,7 @@ get_value PROC
 
 	get_value_end:
 
-		MOV	BYTE PTR DS:[SI], AL
+		MOV	BYTE PTR DS:[SI], AL	; set string value
 
 		POP	AX
 		POP	DI
@@ -698,9 +716,9 @@ cmp_str PROC
 	XOR	AX, AX	; clear ax
 	
 	cmp_str_len:
-		MOV	AL, BYTE PTR DS:[SI + 1]
-		MOV	AH, BYTE PTR DS:[DI + 1]
-		CMP	AL, AH
+		MOV	AL, BYTE PTR DS:[SI + 1]	; get first string length
+		MOV	AH, BYTE PTR DS:[DI + 1]	; get second string length
+		CMP	AL, AH				; compare string lengths
 		JNE	cmp_str_end
 
 	cmp_str_equal:
@@ -738,40 +756,43 @@ calculate PROC
 	XOR	AX, AX
 	XOR	BX, BX
 	
-	MOV	AL, BYTE PTR DS:[nfirst]
-	MOV	BL, BYTE PTR DS:[nsecond]
+	MOV	AL, BYTE PTR DS:[nfirst]	; get first value
+	MOV	BL, BYTE PTR DS:[nsecond]	; get second value
 
-	MOV	SI, OFFSET oper
+	MOV	SI, OFFSET oper			; get operator
 	
 	calculate_add:
 
-		MOV	DI, OFFSET oplus
-		CALL	cmp_str
+		MOV	DI, OFFSET oplus	; get plus string offset
+		CALL	cmp_str			; check if operator is plus
 		JNE	calculate_sub
 		
+		; COUNT SUM ;
+
 		ADD	AX, BX
 		MOV	WORD PTR DS:[result], AX
 		JMP	calculate_end
 
 	calculate_sub:
 	
-		MOV	DI, OFFSET ominus
-		CALL	cmp_str
+		MOV	DI, OFFSET ominus	; get minus string offset
+		CALL	cmp_str			; check if operator is minus
 		JNE	calculate_mult
 	
+		; COUNT SUBSTRACTION ;
+
 		SUB	AX, BX
 		MOV	WORD PTR DS:[result], AX
 		JMP	calculate_end
 
 	calculate_mult:
 
-		MOV	DI, OFFSET otimes
-		CALL	cmp_str
+		MOV	DI, OFFSET otimes	; get multiplication operator
+		CALL	cmp_str			; check if operator is multiplication sign
 		JNE	calculate_err
 
-		MOV	CX, BX
-
-		MUL	CX
+		MOV	CX, BX			; move second value to CX
+		MUL	CX			; multiply by sign
 
 		MOV	WORD PTR DS:[result], AX
 		JMP	calculate_end
@@ -844,9 +865,8 @@ parse_input PROC
 	
 	parse_first:
 		MOV	DI, OFFSET nfirst + 2
-		nop
 		JMP	parse_word
-		nop
+		
 	parse_operator:
 		MOV	DI, OFFSET oper + 2
 		JMP	parse_word
@@ -858,13 +878,14 @@ parse_input PROC
 	parse_word:
 		PUSH	CX
 
-		MOV	AL, BYTE PTR DS:[SI]
-		MOV	BYTE PTR DS:[DI], AL
+		MOV	AL, BYTE PTR DS:[SI]	; copy data from si
+		MOV	BYTE PTR DS:[DI], AL	; to di
 
 		; ; if (si != ' ') then goto parse_first
 
 		INC	DI
 		INC	SI
+
 		POP	CX
 		
 		MOV	AL, BYTE PTR DS:[SI]
