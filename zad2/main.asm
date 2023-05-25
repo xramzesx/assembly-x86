@@ -180,29 +180,34 @@ parse_buffer:
 	MOV	SI, OFFSET buff + 2	; set pointer to first character
 	call 	parse_input
 
+	CALL	set_graphical_mode
 
 	MOV	DX, OFFSET buff + 2
 	CALL	PRINT
+
+	; PRINT SINGLE DOT ;
+
+	XOR	AX, AX
+	MOV	AX, WORD PTR DS:[ellipse_width]
+	MOV	WORD PTR DS:[point_x], AX
+
+	MOV	AX, WORD PTR DS:[ellipse_height]
+	MOV	WORD PTR DS:[point_y], AX
+	
+	MOV	WORD PTR DS:[point_color], 15
+	CALL 	draw_point
+
+
+
+	XOR	AX, AX
+	INT	16h	; wait for any button
+
+
+	CALL	set_text_mode
+
 	CALL	EXIT
 
 
-main_read_buffer:
-
-	; READ INPUT ;
-
-	CALL	read
-	CALL	trim_buffer
-
-	; GET BUFFER LENGTH ;
-
-	XOR	AX, AX	; clear ax
-	XOR	CX, CX	; clear cx
-
-	MOV 	SI, OFFSET buff			; get start pointer
-	MOV	AL, byte ptr ds:[SI + 1]	; copy length value to ax
-	
-	CMP	AL, 0
-	JE	main_read_buffer
 
 main_parse_buffer:
 
@@ -249,6 +254,24 @@ main_parse_buffer:
 
 
 ;=== PROCEDURES ===============================================;
+
+set_graphical_mode PROC
+	PUSH	AX
+	XOR	AX, AX	; clear ax
+	MOV	AL, 13h	; 320x200 w/ 256 colors
+	INT	10h	; submit new mode
+	POP	AX
+	RET
+set_graphical_mode ENDP
+
+set_text_mode PROC	
+	PUSH	AX
+	XOR	AX, AX	; clear ax
+	MOV	AL, 3h	; text mode
+	INT	10h	; submit new mode
+	POP	AX
+	RET
+set_text_mode ENDP
 
 ; [USAGE]:
 ;	MOV	DX, OFFSET offset_name
@@ -838,6 +861,34 @@ cmp_str PROC
 		RET	
 cmp_str ENDP
 
+; [USAGE]:
+; 	MOV	WORD PTR DS:[point_x], x_value
+; 	MOV	WORD PTR DS:[point_y], y_value
+; 	MOV	WORD PTR DS:[point_color], color_value
+; 	CALL 	draw_point
+draw_point PROC
+	PUSH	AX
+	PUSH	BX
+	PUSH	ES
+
+	MOV	AX, 0A000h
+	MOV	ES, AX
+
+	MOV	AX, WORD PTR DS:[point_y]	; setup Y
+	MOV	BX, screen_max_x
+	MUL	BX				; ax = screen_max_x * y
+
+	MOV	BX, WORD PTR DS:[point_x]	; setup X
+	ADD	BX, AX				; bx = screen_max_x * y + x
+
+	MOV	AL, BYTE PTR DS:[point_color]
+	MOV	BYTE PTR ES:[BX], AL	; draw a point
+
+	POP	ES
+	POP	BX
+	POP	AX
+	RET
+draw_point ENDP
 
 calculate PROC
 	PUSH	AX
