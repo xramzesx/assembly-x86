@@ -3,11 +3,11 @@
 
 ; =[CONSTANTS]=============================== ;
 
-max_x		EQU	320
-max_y		EQU	200
+screen_max_x	EQU	320
+screen_max_y	EQU	200
 
-midpoint_x	EQU	max_x / 2
-midpoint_y	EQU	max_y / 2
+midpoint_x	EQU	screen_max_x / 2
+midpoint_y	EQU	screen_max_y / 2
 
 DATA_SEG SEGMENT
 ; =[EXAMPLE]================================ ;
@@ -76,11 +76,11 @@ otimes		DB "*", 4d, "razy$"
 
 ; =[MESSAGES]================================ ;
 
-message_intro		DB "Wprowadz slowny opis dzialania: $"
+message_intro		DB "Type required parameters (width and height): $"
 
 ; =[ERRORS]================================== ;
 
-error_parse_number	DB "Unknown number", 10, 13, "$" 
+error_parse_number	DB "Invalid argument", 10, 13, "$" 
 error_parse_operator	DB "Unknown operator", 10, 13, "$"
 error_invalid_no_args	DB "Invalid number of arguments", 10, 13, "$"
 error_calculate		DB "Unknown operator", 10, 13, "$"
@@ -94,7 +94,7 @@ ellipse_height	DW	0
 
 point_x		DW	0
 point_y		DW	0
-point_color	DW	0
+point_color	DB	0
 
 DATA_SEG ENDS
 
@@ -124,10 +124,44 @@ START1:
 
 	MOV	BYTE PTR ES:[buff + 1], CL	; store psp size in buff
 
+	CMP	CL, 0			; check if psp is empty
+	JE	prompt_buffer		; display prompt
+
 	; COPY BUFFER ;
 
 	CLD
 	REP	MOVSB
+
+	JMP	parse_buffer
+
+	; ============================= PROMPT BUFFER ============================;
+
+prompt_buffer:
+
+	MOV	DX, OFFSET message_intro
+	CALL	PRINT
+
+	main_read_buffer:
+
+		; READ INPUT ;
+
+		CALL	read
+		CALL	trim_buffer
+
+		; GET BUFFER LENGTH ;
+
+		XOR	AX, AX	; clear ax
+		XOR	CX, CX	; clear cx
+
+		MOV 	SI, OFFSET buff			; get start pointer
+		MOV	AL, byte ptr ds:[SI + 1]	; copy length value to ax
+		
+		CMP	AL, 0
+		JE	main_read_buffer
+
+	; ======================== END PROMPT BUFFER =============================;
+
+parse_buffer:
 
 
 	; SETUP DEFAULT DS ;
@@ -140,7 +174,7 @@ START1:
 	CALL	trim_buffer
 
 	XOR	AX, AX
-	MOV	AL, BYTE PTR DS:[buff + 1]
+	MOV	AL, BYTE PTR DS:[buff + 1]	; get buffer length
 
 	MOV	CX, AX			; set string length
 	MOV	SI, OFFSET buff + 2	; set pointer to first character
@@ -214,8 +248,6 @@ main_parse_buffer:
 	INT	21h	; DOS interrupt
 
 
-;=== ARGUMENTS ================================================;
-psp_buff	DW	200, ?, 200 dup('$')
 ;=== PROCEDURES ===============================================;
 
 ; [USAGE]:
@@ -924,31 +956,49 @@ parse_input PROC
 		JMP	parse_word
 	
 	parse_second:
-		MOV	DI, OFFSET ellipse_width
+		MOV	DI, OFFSET ellipse_height
 		JMP	parse_word
 
 	parse_word:
+
 		PUSH	CX
 		PUSH	AX
 		PUSH	BX
 		
-		MOV	AX, WORD PTR DS:[DI]
+		; ========== RESTORE PREVIOUS RESULT ====================== ;
+		
+		XOR	AX, AX			; clear ax
+		
+		MOV	AX, WORD PTR DS:[DI]	; get current result stored in memory
 
-		MOV	CX, 10
-		MUL	CX
-		ADD	AX, WORD PTR DS:[SI] - '0'
+		MOV	BX, 10
+		MUL	BX			; shift digits by base (10)
 
-		MOV	WORD PTR DS:[DI], AX
+		XOR	BX, BX			; clear bx
+		MOV	BL, BYTE PTR DS:[SI]	; get current source digit
+		
+		; ========== CHECK IF DIGIT ============================== ;
 
+		CMP	BL, '0'
+		JL	parse_value_exception
 
-		; ; if (si != ' ') then goto parse_first
+		CMP	BL, '9'
+		JG	parse_value_exception
+		
+		; ========== PARSING ===================================== ;
+
+		SUB	BL, '0'			; parse to integer
+		ADD	AX, BX			; add to current number
+		MOV	WORD PTR DS:[DI], AX	; store value in memory
 
 		INC	SI
 
 		POP	BX
 		POP	AX
 		POP	CX
-		
+
+		; ========== CHECK IF WHITESPACE ========================== ;
+
 		MOV	AL, BYTE PTR DS:[SI]
 		
 		CMP	AL, ' '		; check if space
@@ -983,6 +1033,13 @@ parse_input PROC
 		MOV	DX, OFFSET error_invalid_no_args
 		CALL	throw_exception
 
+	parse_value_exception:
+		POP	CX
+		POP	BX
+		POP	AX
+		MOV	DX, OFFSET error_parse_number
+		CALL	throw_exception
+
 	skip_spaces:
 
 		MOV	AL, byte ptr ds:[SI]
@@ -1000,11 +1057,8 @@ parse_input PROC
 			LOOP	skip_spaces
 			JMP 	parse_finish
 
-		
-
 	parse_finish:
 		RET
-
 
 parse_input ENDP
 
