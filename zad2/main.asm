@@ -917,12 +917,12 @@ draw_symetric_points PROC
 
 	;========= QUARTER I ===(x,y)====================;
 
-	MOV	CX, AX		; setup x = x
+	MOV	CX, AX				; setup x = x
 	ADD	CX, midpoint_x
 
 	MOV	WORD PTR DS:[point_x], CX
 
-	MOV	CX, BX		; setup y = y
+	MOV	CX, BX				; setup y = y
 	ADD	CX, midpoint_y
 
 	MOV	WORD PTR DS:[point_y], CX
@@ -935,9 +935,9 @@ draw_symetric_points PROC
 	MOV	CX, midpoint_x
 	SUB	CX, AX
 
-	MOV	WORD PTR DS:[point_x], CX
+	MOV	WORD PTR DS:[point_x], CX	; setup x = -x
 
-	MOV	CX, BX		; setup y = y
+	MOV	CX, BX				; setup y = y
 	ADD	CX, midpoint_y
 
 	MOV	WORD PTR DS:[point_y], CX
@@ -946,7 +946,7 @@ draw_symetric_points PROC
 
 	;========= QUARTER III ==(x,-y)==================;
 
-	MOV	CX, AX		; setup x = x
+	MOV	CX, AX				; setup x = x
 	ADD	CX, midpoint_x
 
 	MOV	WORD PTR DS:[point_x], CX
@@ -955,7 +955,7 @@ draw_symetric_points PROC
 	MOV	CX, midpoint_y
 	SUB	CX, BX
 
-	MOV	WORD PTR DS:[point_y], CX
+	MOV	WORD PTR DS:[point_y], CX	; setup y = - y
 
 	CALL	draw_point
 
@@ -965,13 +965,13 @@ draw_symetric_points PROC
 	MOV	CX, midpoint_x
 	SUB	CX, AX
 
-	MOV	WORD PTR DS:[point_x], CX
+	MOV	WORD PTR DS:[point_x], CX	; setup x = -x
 
 	XOR	CX, CX
 	MOV	CX, midpoint_y
 	SUB	CX, BX
 
-	MOV	WORD PTR DS:[point_y], CX
+	MOV	WORD PTR DS:[point_y], CX	; setup y = -y
 
 	CALL	draw_point
 
@@ -981,6 +981,11 @@ draw_symetric_points PROC
 	RET
 draw_symetric_points ENDP
 
+; [USAGE]:
+; 	MOV	WORD PTR DS:[ellipse_width], width_value
+; 	MOV	WORD PTR DS:[ellipse_height], height_value
+; 	MOV	WORD PTR DS:[point_color], color_value
+; 	CALL 	draw_point
 draw_ellipse	PROC
 	PUSH	AX
 	PUSH	BX
@@ -1017,9 +1022,8 @@ draw_ellipse	PROC
 	draw_ellipse_loop_y:
 		PUSH	WORD PTR DS:[ellipse_x]
 
-		CALL	draw_ellipse_y		; calculate ellipse y
+		CALL	calc_ellipse_y		; calculate ellipse y
 		CALL	draw_symetric_points	; draw symetric ellipse by y
-		
 
 		; ============================================================= ;
 
@@ -1046,7 +1050,7 @@ draw_ellipse	PROC
 	draw_ellipse_loop_x:
 		PUSH	WORD PTR DS:[ellipse_y]
 
-		CALL	draw_ellipse_x		; calculate ellipse x
+		CALL	calc_ellipse_x		; calculate ellipse x
 		CALL	draw_symetric_points	; draw symetric ellipse by x
 
 		; ============================================================= ;
@@ -1075,8 +1079,7 @@ draw_ellipse	PROC
 	RET
 draw_ellipse	ENDP
 
-draw_ellipse_y PROC
-
+calc_ellipse_y PROC
 	FINIT	; reset fpu
 
 	FILD	WORD PTR DS:[ellipse_x]	; x
@@ -1098,9 +1101,9 @@ draw_ellipse_y PROC
 	FIST	WORD PTR DS:[ellipse_y]		; store new y value
 
 	RET
-draw_ellipse_y ENDP
+calc_ellipse_y ENDP
 
-draw_ellipse_x PROC
+calc_ellipse_x PROC
 	FINIT	; reset fpu
 
 	FILD	WORD PTR DS:[ellipse_y]	; y
@@ -1122,7 +1125,7 @@ draw_ellipse_x PROC
 	FIST	WORD PTR DS:[ellipse_x]		; store new x value
 
 	RET
-draw_ellipse_x ENDP
+calc_ellipse_x ENDP
 
 calculate PROC
 	PUSH	AX
