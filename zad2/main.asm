@@ -89,8 +89,8 @@ error_calculate		DB "Unknown operator", 10, 13, "$"
 ellipse_width	DW	0
 ellipse_height	DW	0
 
-radius_width	DW	0	; ellipse_width  / 2
-radius_height	DW	0	; ellipse_height / 2
+radius_width	DW	0	; ellipse_width  / 2 == a	; for x
+radius_height	DW	0	; ellipse_height / 2 == b	; for y
 
 radius_width_pow	DW	0
 radius_height_pow	DW	0
@@ -990,20 +990,139 @@ draw_ellipse	PROC
 
 	XOR	AX, AX
 	MOV	AX, WORD PTR DS:[ellipse_width]
-	SHL	AX, 1				; divide by 2 using binary shift
+	SHR	AX, 1				; divide by 2 using binary shift
 
 	MOV	WORD PTR DS:[radius_width], AX		; store counted radius_width
 
+	MUL	AX					; count power of radius_width
+	MOV	WORD PTR DS:[radius_width_pow], AX	; store counted power
+
 	XOR	AX, AX
 	MOV	AX, WORD PTR DS:[ellipse_height]
-	SHL	AX, 1				; divide by 2 using binary shift
+	SHR	AX, 1				; divide by 2 using binary shift
 
 	MOV	WORD PTR DS:[radius_height], AX		; store counted radius_height
+
+	MUL	AX					; count power of radius_height
+	MOV	WORD PTR DS:[radius_width_pow], AX	; store counted power
+
+	; ========================== ELLIPSE DRAWING ================================= ;
+	; ========================== ELLIPSE BY y(x) ================================= ;
+
+	XOR	CX, CX
+	MOV	CX, WORD PTR DS:[radius_width]
+
+	MOV	WORD PTR DS:[ellipse_x], 0
+
+	draw_ellipse_loop_y:
+		PUSH	WORD PTR DS:[ellipse_x]
+
+		CALL	draw_ellipse_y		; calculate ellipse y
+		CALL	draw_symetric_points	; draw symetric ellipse by y
+		
+
+		; ============================================================= ;
+
+		MOV	AX, WORD PTR DS:[ellipse_x]
+		ADD	AX, midpoint_x
+		MOV	WORD PTR DS:[ellipse_x], AX
+
+		MOV	AX, WORD PTR DS:[ellipse_y]
+		ADD	AX, midpoint_y
+		MOV	WORD PTR DS:[ellipse_y], AX
+
+		; ============================================================= ;
+
+		POP	WORD PTR DS:[ellipse_x]
+
+		INC	WORD PTR DS:[ellipse_x]
+		LOOP	draw_ellipse_loop_y
+
+	MOV	CX, WORD PTR DS:[radius_height]
+	MOV	WORD PTR DS:[ellipse_y], 0
+
+	; ========================== ELLIPSE BY x(y) ================================= ;
+
+	draw_ellipse_loop_x:
+		PUSH	WORD PTR DS:[ellipse_y]
+
+		CALL	draw_ellipse_x		; calculate ellipse x
+		CALL	draw_symetric_points	; draw symetric ellipse by x
+
+		; ============================================================= ;
+
+		MOV	AX, WORD PTR DS:[ellipse_x]
+		ADD	AX, midpoint_x
+		MOV	WORD PTR DS:[ellipse_x], AX
+
+		MOV	AX, WORD PTR DS:[ellipse_y]
+		ADD	AX, midpoint_y
+		MOV	WORD PTR DS:[ellipse_y], AX
+
+		; ============================================================= ;
+
+		POP	WORD PTR DS:[ellipse_y]
+
+		INC	WORD PTR DS:[ellipse_y]
+
+		LOOP	draw_ellipse_loop_x
+
+	; ============================== FINISH ====================================== ;
+
 	POP	CX
 	POP	BX
 	POP	AX
 	RET
 draw_ellipse	ENDP
+
+draw_ellipse_y PROC
+
+	FINIT	; reset fpu
+
+	FILD	WORD PTR DS:[ellipse_x]	; x
+	FMUL	ST(0), ST(0)		; x * x
+
+	FILD	WORD PTR DS:[radius_width]	; a
+	FMUL	ST(0), ST(0)			; a * a
+
+	FSUB	ST(0), ST(1)			; a * a - x * x
+	
+	FSQRT					; sqrt(a * a - x * x)
+
+	FILD	WORD PTR DS:[radius_height]	; b
+	FMUL					; b * sqrt(a * a - x * x)
+
+	FILD	WORD PTR DS:[radius_width]	; a
+	FDIVP	ST(1), ST(0)			; b / a * sqrt(a * a - x * x)
+
+	FIST	WORD PTR DS:[ellipse_y]		; store new y value
+
+	RET
+draw_ellipse_y ENDP
+
+draw_ellipse_x PROC
+	FINIT	; reset fpu
+
+	FILD	WORD PTR DS:[ellipse_y]	; y
+	FMUL	ST(0), ST(0)		; y * y
+
+	FILD	WORD PTR DS:[radius_height]	; b
+	FMUL	ST(0), ST(0)			; b * b
+
+	FSUB	ST(0), ST(1)			; b * b - y * y
+	
+	FSQRT					; sqrt(b * b - y * y)
+
+	FILD	WORD PTR DS:[radius_width]	; a
+	FMUL					; a * sqrt(b * b - y * y)
+
+	FILD	WORD PTR DS:[radius_height]	; b
+	FDIVP	ST(1), ST(0)			; a / b * sqrt(b * b - y * y)
+
+	FIST	WORD PTR DS:[ellipse_x]		; store new x value
+
+	RET
+draw_ellipse_x ENDP
 
 calculate PROC
 	PUSH	AX
