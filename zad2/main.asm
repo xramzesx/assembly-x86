@@ -1,14 +1,13 @@
-;--[DATA SEGMENT]---------------------------- ;
-
-
+;--[DIRECTIVES]---------------------------- ;
+.387
 ; =[CONSTANTS]=============================== ;
-
 screen_max_x	EQU	320
 screen_max_y	EQU	200
 
 midpoint_x	EQU	screen_max_x / 2
 midpoint_y	EQU	screen_max_y / 2
 
+;--[DATA SEGMENT]---------------------------- ;
 DATA_SEG SEGMENT
 ; =[EXAMPLE]================================ ;
 t1	DB "To jest tekst!", 10, 13, "$"
@@ -90,12 +89,22 @@ error_calculate		DB "Unknown operator", 10, 13, "$"
 ellipse_width	DW	0
 ellipse_height	DW	0
 
+radius_width	DW	0	; ellipse_width  / 2
+radius_height	DW	0	; ellipse_height / 2
+
+radius_width_pow	DW	0
+radius_height_pow	DW	0
+
+ellipse_x	DW	0	; for Bresenham algorithm x
+ellipse_y	DW	0	; for Bresenham algorithm y
+
 ; =[RENDER]================================== ;
 
 point_x		DW	0
 point_y		DW	0
-point_color	DB	0
+point_color	DB	13
 
+background_color	DB	0
 DATA_SEG ENDS
 
 ;--[CODE SEGMENT]---------------------------- ;
@@ -185,16 +194,18 @@ parse_buffer:
 	MOV	DX, OFFSET buff + 2
 	CALL	PRINT
 
-	; PRINT SINGLE DOT ;
+	; DRAW ELLIPSE ;
+
+	CALL	draw_ellipse
+
+	; EXAMPLE MIDPOINT RENDER ;
 
 	XOR	AX, AX
-	MOV	AX, WORD PTR DS:[ellipse_width]
-	MOV	WORD PTR DS:[point_x], AX
-
-	MOV	AX, WORD PTR DS:[ellipse_height]
-	MOV	WORD PTR DS:[point_y], AX
 	
-	MOV	WORD PTR DS:[point_color], 15
+	MOV	WORD PTR DS:[point_x], midpoint_x
+	MOV	WORD PTR DS:[point_y], midpoint_y
+
+	MOV	WORD PTR DS:[point_color], 12
 	CALL 	draw_point
 
 
@@ -889,6 +900,110 @@ draw_point PROC
 	POP	AX
 	RET
 draw_point ENDP
+
+
+; [USAGE]:
+; 	MOV	WORD PTR DS:[ellipse_x], x_value
+; 	MOV	WORD PTR DS:[ellipse_y], y_value
+; 	MOV	WORD PTR DS:[point_color], color_value
+; 	CALL 	draw_point
+draw_symetric_points PROC
+	PUSH AX
+	PUSH BX
+	PUSH CX
+	
+	MOV	AX, WORD PTR DS:[ellipse_x]
+	MOV	BX, WORD PTR DS:[ellipse_y]
+
+	;========= QUARTER I ===(x,y)====================;
+
+	MOV	CX, AX		; setup x = x
+	ADD	CX, midpoint_x
+
+	MOV	WORD PTR DS:[point_x], CX
+
+	MOV	CX, BX		; setup y = y
+	ADD	CX, midpoint_y
+
+	MOV	WORD PTR DS:[point_y], CX
+
+	CALL	draw_point
+
+	;========= QUARTER II ==(-x,y)===================;
+
+	XOR	CX, CX
+	MOV	CX, midpoint_x
+	SUB	CX, AX
+
+	MOV	WORD PTR DS:[point_x], CX
+
+	MOV	CX, BX		; setup y = y
+	ADD	CX, midpoint_y
+
+	MOV	WORD PTR DS:[point_y], CX
+
+	CALL	draw_point
+
+	;========= QUARTER III ==(x,-y)==================;
+
+	MOV	CX, AX		; setup x = x
+	ADD	CX, midpoint_x
+
+	MOV	WORD PTR DS:[point_x], CX
+
+	XOR	CX, CX
+	MOV	CX, midpoint_y
+	SUB	CX, BX
+
+	MOV	WORD PTR DS:[point_y], CX
+
+	CALL	draw_point
+
+	;========= QUARTER IV ==(-x,-y)===================;
+
+	XOR	CX, CX
+	MOV	CX, midpoint_x
+	SUB	CX, AX
+
+	MOV	WORD PTR DS:[point_x], CX
+
+	XOR	CX, CX
+	MOV	CX, midpoint_y
+	SUB	CX, BX
+
+	MOV	WORD PTR DS:[point_y], CX
+
+	CALL	draw_point
+
+	POP CX
+	POP BX
+	POP AX
+	RET
+draw_symetric_points ENDP
+
+draw_ellipse	PROC
+	PUSH	AX
+	PUSH	BX
+	PUSH	CX
+
+	; ========================== SETUP CONSTANTS ================================= ;
+
+	XOR	AX, AX
+	MOV	AX, WORD PTR DS:[ellipse_width]
+	SHL	AX, 1				; divide by 2 using binary shift
+
+	MOV	WORD PTR DS:[radius_width], AX		; store counted radius_width
+
+	XOR	AX, AX
+	MOV	AX, WORD PTR DS:[ellipse_height]
+	SHL	AX, 1				; divide by 2 using binary shift
+
+	MOV	WORD PTR DS:[radius_height], AX		; store counted radius_height
+	POP	CX
+	POP	BX
+	POP	AX
+	RET
+draw_ellipse	ENDP
 
 calculate PROC
 	PUSH	AX
