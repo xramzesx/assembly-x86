@@ -110,44 +110,10 @@ START1:
 
 	MOV	BYTE PTR ES:[buff + 1], CL	; store psp size in buff
 
-	CMP	CL, 0			; check if psp is empty
-	JE	prompt_buffer		; display prompt
-
 	; COPY BUFFER ;
 
 	CLD
 	REP	MOVSB
-
-	JMP	parse_buffer
-
-	; ============================= PROMPT BUFFER ============================;
-
-prompt_buffer:
-
-	MOV	DX, OFFSET message_intro
-	CALL	PRINT
-
-	main_read_buffer:
-
-		; READ INPUT ;
-
-		CALL	read
-		CALL	trim_buffer
-
-		; GET BUFFER LENGTH ;
-
-		XOR	AX, AX	; clear ax
-		XOR	CX, CX	; clear cx
-
-		MOV 	SI, OFFSET buff			; get start pointer
-		MOV	AL, byte ptr ds:[SI + 1]	; copy length value to ax
-		
-		CMP	AL, 0
-		JE	main_read_buffer
-
-	; ======================== END PROMPT BUFFER =============================;
-
-parse_buffer:
 
 
 	; SETUP DEFAULT DS ;
@@ -326,6 +292,8 @@ control_exit:
 
 ;=== PROCEDURES ===============================================;
 
+;=== CHANGE MODES =============================================;
+
 set_graphical_mode PROC
 	PUSH	AX
 	XOR	AX, AX	; clear ax
@@ -343,6 +311,8 @@ set_text_mode PROC
 	POP	AX
 	RET
 set_text_mode ENDP
+
+;=== PRINT STRINGS ============================================;
 
 ; [USAGE]:
 ;	MOV	DX, OFFSET offset_name
@@ -388,154 +358,7 @@ print_space PROC
 	RET
 print_space ENDP
 
-; [USAGE]:
-; 	CALL read
-; 	<...> do with buff whatever you want <...>
-; [DESC]:
-;	Read input from user via DOS interrupt
-read PROC
-	PUSH	AX
-	PUSH	DS
-	PUSH	DX
-	
-	MOV	AX, SEG DATA_SEG ; Load data segment
-	MOV	DS, AX		 ; move loaded segment to ds
-	MOV	DX, OFFSET buff	 ; load buffer to dx
-	MOV	AH, 0ah		 ; set DOS code (read)
-	INT	21H		 ; DOS interrupt
-	
-	POP	DX
-	POP	DS
-	POP	AX
-	
-	RET
-read ENDP
-
-; [USAGE]:
-; 	CALL trim_buffer
-; 	<...> do with buff whatever you want <...>
-;
-trim_buffer PROC
-	MOV	BP, OFFSET buff + 1
-	MOV	BL, BYTE PTR DS:[BP]
-	ADD	BL, 1
-	XOR	BH, BH
-	ADD	BP, BX
-	MOV	BYTE PTR DS:[BP], '$'
-
-	RET
-trim_buffer ENDP
-
-; [USAGE]:
-; 	MOV  SI, OFFSET source_offset
-; 	CALL get_length
-; 	<...> do with buff whatever you want <...>
-; [NOTE]:
-; first 2 bytes of source_offset contains data like: value and length
-; main string starts from source_offset + 2
-; 
-get_length PROC
-	PUSH	SI
-	PUSH	DI
-	PUSH	AX
-	PUSH	BX
-	PUSH	CX
-	
-	MOV	DI, SI	; save si begin to di
-	ADD	SI, 2	; point si to actual string
-	
-	XOR	AX, AX	; CLEAR AX
-	XOR	BX, BX	; CLEAR BX
-
-	MOV	CX, 30	; SET BUFFOR MAX LENGTH
-	
-	get_length_loop:
-
-		MOV	AL, BYTE PTR DS:[SI]
-		MOV	AH, "$"
-
-		CMP	AL, AH
-		JE	get_length_end
-
-		INC	BL
-		INC	SI
-
-		LOOP	get_length_loop
-
-	get_length_end:
-		INC	DI
-		MOV	AL, BL
-		MOV	BYTE PTR DS:[DI], AL	; set string length
-
-		POP	CX
-		POP	BX
-		POP	AX
-		POP	DI
-		POP	SI
-		RET
-
-get_length ENDP
-
-
-; [USAGE]:
-; 	MOV  SI, OFFSET source_offset
-; 	CALL get_value
-; [NOTE]
-; 	this procedure is mainly used in get_value proc.
-check_number PROC
-	MOV	AL, BYTE PTR DS:[DI]
-	CALL	cmp_str
-	RET
-check_number ENDP
-
-
-; [USAGE]:
-; 	MOV si, OFFSET source_string
-; 	MOV di, OFFSET destination_string
-; 	CALL cmp_str
-; 	<...> do with buff whatever you want <...>
-; [NOTE]:
-; 	this procedure return result as ZF flag
-cmp_str PROC
-	PUSH	SI
-	PUSH	DI
-	PUSH	CX
-	PUSH	AX
-
-	XOR	CX, CX	; clear cx
-	XOR	AX, AX	; clear ax
-	
-	cmp_str_len:
-		MOV	AL, BYTE PTR DS:[SI + 1]	; get first string length
-		MOV	AH, BYTE PTR DS:[DI + 1]	; get second string length
-		CMP	AL, AH				; compare string lengths
-		JNE	cmp_str_end
-
-	cmp_str_equal:
-		XOR	CX, CX ; clear CX
-		XOR	AX, AX ; clear AX
-
-		MOV	AL, BYTE PTR DS:[SI + 1] ; get length
-		MOV	CX, AX			 ; set length
-		
-		MOV	AX, SEG DATA_SEG	; Load data segment
-		MOV	DS, AX			; move loaded data to ds
-		MOV	ES, AX			; move loaded data to es
-
-		ADD	SI, 2			; skip value bytes
-		ADD	DI, 2			; skip value bytes
-
-		CLD				; clear flag to compare forward 
-		REPE	CMPSB			; repeat while equal compare string byte-by-byte
-		
-	cmp_str_end:
-
-		POP	AX
-		POP	CX
-		POP	DI
-		POP	SI
-		RET	
-cmp_str ENDP
+;=== RENDER ===================================================;
 
 ; [USAGE]:
 ; 	MOV	WORD PTR DS:[point_x], x_value
@@ -646,52 +469,6 @@ draw_symetric_points PROC
 	RET
 draw_symetric_points ENDP
 
-validate_ellipse_params PROC
-	PUSH	AX
-
-	
-	validate_width_max:
-		MOV	AX, WORD PTR DS:[ellipse_width]
-
-		CMP	AX, screen_max_x	; if less than screen_max_x
-		JLE	validate_width_min	; jump to validate min
-
-		MOV	WORD PTR DS:[ellipse_width], screen_max_x - 1
-
-		JMP	validate_height_max
-
-	validate_width_min:
-		CMP	AX, screen_min_x
-		JGE	validate_height_max
-		
-		MOV	WORD PTR DS:[ellipse_width], screen_min_x
-
-		JMP	validate_height_max
-
-	validate_height_max:
-		MOV	AX, WORD PTR DS:[ellipse_height]
-
-		CMP	AX, screen_max_y	; if less than screen_max_x
-		JLE	validate_height_min	; jump to validate min
-
-		MOV	WORD PTR DS:[ellipse_height], screen_max_y - 1
-
-		JMP	validate_height_min
-		
-	
-	validate_height_min:
-		CMP	AX, screen_min_y
-		JGE	validate_end
-
-		MOV	WORD PTR DS:[ellipse_height], screen_min_y
-
-		JMP	validate_end
-
-
-	validate_end:
-		POP	AX
-		RET
-validate_ellipse_params ENDP
 
 ; [USAGE]:
 ; 	MOV	WORD PTR DS:[ellipse_width], width_value
@@ -793,6 +570,8 @@ draw_ellipse	PROC
 	RET
 draw_ellipse	ENDP
 
+;=== CLEANING =================================================;
+
 ; [USAGE]:
 ;	MOV	BYTE PTR DS:[background_color], background_color_value
 ;	CALL	clean_screen
@@ -816,6 +595,9 @@ clean_screen PROC
 	POP	AX
 	RET
 clean_screen ENDP
+
+;=== CALCULATIONS =============================================;
+
 calc_ellipse_y PROC
 	FINIT	; reset fpu
 
@@ -864,6 +646,55 @@ calc_ellipse_x PROC
 	RET
 calc_ellipse_x ENDP
 
+;=== UTILS ===========================================;
+
+validate_ellipse_params PROC
+	PUSH	AX
+
+	
+	validate_width_max:
+		MOV	AX, WORD PTR DS:[ellipse_width]
+
+		CMP	AX, screen_max_x	; if less than screen_max_x
+		JLE	validate_width_min	; jump to validate min
+
+		MOV	WORD PTR DS:[ellipse_width], screen_max_x - 1
+
+		JMP	validate_height_max
+
+	validate_width_min:
+		CMP	AX, screen_min_x
+		JGE	validate_height_max
+		
+		MOV	WORD PTR DS:[ellipse_width], screen_min_x
+
+		JMP	validate_height_max
+
+	validate_height_max:
+		MOV	AX, WORD PTR DS:[ellipse_height]
+
+		CMP	AX, screen_max_y	; if less than screen_max_x
+		JLE	validate_height_min	; jump to validate min
+
+		MOV	WORD PTR DS:[ellipse_height], screen_max_y - 1
+
+		JMP	validate_height_min
+		
+	
+	validate_height_min:
+		CMP	AX, screen_min_y
+		JGE	validate_end
+
+		MOV	WORD PTR DS:[ellipse_height], screen_min_y
+
+		JMP	validate_end
+
+
+	validate_end:
+		POP	AX
+		RET
+validate_ellipse_params ENDP
+
 ; [USAGE]:
 ; 	MOV si, OFFSET source_axis
 ; 	CALL increment_axis
@@ -881,6 +712,23 @@ decrement_axis PROC
 	DEC	WORD PTR DS:[SI]
 	RET
 decrement_axis ENDP
+
+;=== BUFFER PARSING ===========================================;
+
+; [USAGE]:
+; 	CALL trim_buffer
+; 	<...> do with buff whatever you want <...>
+;
+trim_buffer PROC
+	MOV	BP, OFFSET buff + 1
+	MOV	BL, BYTE PTR DS:[BP]
+	ADD	BL, 1
+	XOR	BH, BH
+	ADD	BP, BX
+	MOV	BYTE PTR DS:[BP], '$'
+
+	RET
+trim_buffer ENDP
 
 ; [USAGE]:
 ; 	MOV si, OFFSET source_string
@@ -1042,6 +890,8 @@ parse_input PROC
 		RET
 
 parse_input ENDP
+
+;=== EXIT & EXCEPTIONS ========================================;
 
 ; [USAGE]:
 ; 	MOV	DX, OFFSET error_message
