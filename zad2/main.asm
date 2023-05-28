@@ -4,21 +4,32 @@
 screen_max_x	EQU	320
 screen_max_y	EQU	200
 
+screen_min_x	EQU	4
+screen_min_y	EQU	4
+
 midpoint_x	EQU	screen_max_x / 2
 midpoint_y	EQU	screen_max_y / 2
 
+; =[SCAN CODES]============================== ;
+
+scan_esc		EQU	1d	; exit
+scan_q			EQU	16d	; change clean flag
+scan_arrow_up		EQU	72d	; increase height
+scan_arrow_down		EQU	80d	; decrease height
+scan_arrow_left		EQU	75d	; decrease width
+scan_arrow_right	EQU	77d	; increase widht
+scan_space		EQU	57d	; next ellipse color
+
+scan_w			EQU	17d	; next background color
+scan_a			EQU	30d	; prev background color
+scan_s			EQU	31d	; prev ellipse color
+scan_d			EQU	32d	; next ellipse color
+
 ;--[DATA SEGMENT]---------------------------- ;
 DATA_SEG SEGMENT
-; =[EXAMPLE]================================ ;
-t1	DB "To jest tekst!", 10, 13, "$"
-t2	DB "To jest drugi tekst!", 10, 13, "$"
-t3	DB "A to jest test $"
 
 ; =[BUFFERS]================================ ;
 buff	DB 30, ?, 30 DUP('$')
-nfirst	DB 30, 0, 30 DUP('$')
-nsecond	DB 30, 0, 30 DUP('$')
-oper	DB 30, 0, 30 DUP('$')
 
 ; [NOTE]: result offset stores a result from 
 ; 	  calculations, so it need to have
@@ -39,40 +50,6 @@ nspace	DB  " $"
 ; Strings defined here are in convention:
 ; vname		db value, length, name
 
-vzero		DB 0d, 4d, "zero$"
-vone		DB 1d, 5d, "jeden$"
-vtwo		DB 2d, 3d, "dwa$"
-vthree		DB 3d, 4d, "trzy$"
-vfour		DB 4d, 6d, "cztery$"
-vfive		DB 5d, 4d, "piec$"
-vsix		DB 6d, 5d, "szesc$"
-vseven		DB 7d, 6d, "siedem$"
-veight		DB 8d, 5d, "osiem$"
-vnine		DB 9d, 8d, "dziewiec$"
-vten		DB 10d, 8d, "dziesiec$"
-veleven		DB 11d, 10d, "jedenascie$"
-vtwelve		DB 12d, 9d, "dwanascie$"
-vthirteen	DB 13d, 10d, "trzynascie$"
-vfourteen	DB 14d, 11d, "czternascie$"
-vfifteen	DB 15d, 10d, "pietnascie$"
-vsixteen	DB 16d, 10d, "szesnascie$"
-vseventeen	DB 17d, 12d, "siedemnascie$"
-veighteen	DB 18d, 11d, "osiemnascie$"
-vnineteen	DB 19d, 14d, "dziewietnascie$"
-vtwenty		DB 20d, 10d, "dwadziescia$"
-vthirty		DB 30d, 11d, "trzydziesci$"
-vfourty		DB 40d, 12d, "czterdziesci$"
-vfifty		DB 50d, 11d, "piecdziesiat$"
-vsixty		DB 60d, 13d, "szescdziesiat$"
-vseventy	DB 70d, 14d, "siedemdziesiat$"
-veighty		DB 80d, 13d, "osiemdziesiat$"
-vninety		DB 90d, 16d, "dziewiecdziesiat$"
-vhundred	DB 100d, 4d, "sto$"
-
-oplus		DB "+", 4d, "plus$"
-ominus		DB "-", 5d, "minus$"
-otimes		DB "*", 4d, "razy$"
-
 ; =[MESSAGES]================================ ;
 
 message_intro		DB "Type required parameters (width and height): $"
@@ -80,9 +57,7 @@ message_intro		DB "Type required parameters (width and height): $"
 ; =[ERRORS]================================== ;
 
 error_parse_number	DB "Invalid argument", 10, 13, "$" 
-error_parse_operator	DB "Unknown operator", 10, 13, "$"
 error_invalid_no_args	DB "Invalid number of arguments", 10, 13, "$"
-error_calculate		DB "Unknown operator", 10, 13, "$"
 
 ; =[ELLIPSE WIDTH]============================ ;
 
@@ -100,11 +75,13 @@ ellipse_y	DW	0	; for Bresenham algorithm y
 
 ; =[RENDER]================================== ;
 
+background_color	DB	1
 point_x		DW	0
 point_y		DW	0
 point_color	DB	13
 
-background_color	DB	0
+clean_screen_flag	DB	1
+
 DATA_SEG ENDS
 
 ;--[CODE SEGMENT]---------------------------- ;
@@ -194,74 +171,157 @@ parse_buffer:
 	MOV	DX, OFFSET buff + 2
 	CALL	PRINT
 
-	; DRAW ELLIPSE ;
 
-	CALL	draw_ellipse
+control_loop:
 
-	; EXAMPLE MIDPOINT RENDER ;
+	; =========================== CLEAN SCREEN ===============================;
 
-	XOR	AX, AX
-	
-	MOV	WORD PTR DS:[point_x], midpoint_x
-	MOV	WORD PTR DS:[point_y], midpoint_y
+	MOV	AH, BYTE PTR DS:[clean_screen_flag]	; check clean flag
+	CMP	AH, 0					; if flag is unset
+	JE	control_draw_ellipse			; 	don't clean a screen
+	CALL	clean_screen				; else: clean screen
 
-	MOV	WORD PTR DS:[point_color], 12
-	CALL 	draw_point
+	; =========================== DRAW ELLIPSE ===============================;
 
+	control_draw_ellipse:
+		CALL	draw_ellipse
 
+	; =========================== GET CHAR ===================================;
 
 	XOR	AX, AX
 	INT	16h	; wait for any button
 
+	; =========================== SCAN CODES =================================;
 
+	XOR	AX, AX
+	IN	AL, 060h	; read scan code
+
+	; =============================  ESC  ====================================;
+
+	CMP	AL, scan_esc	; if esc
+	JE	control_exit
+
+	; =============================   Q   ====================================;
+
+	CMP	AL, scan_q
+	JNE	control_space
+
+	MOV	AH, BYTE PTR DS:[clean_screen_flag]
+	
+	unset_clean_screen_flag:
+		CMP	AH, 0
+		JE	set_clean_screen_flag
+
+		MOV	BYTE PTR DS:[clean_screen_flag], 0
+		JMP	control_loop_end
+
+	set_clean_screen_flag:
+		MOV	BYTE PTR DS:[clean_screen_flag], 1
+		JMP	control_loop_end
+	
+	; ============================= SPACE ====================================;
+	
+	control_space:
+		CMP	AL, scan_space
+		JNE	control_w
+
+		INC	BYTE PTR DS:[point_color]
+
+		JMP	control_loop_end
+	
+	; =============================== B ======================================;
+	
+	control_w:
+		CMP	AL, scan_w
+		JNE	control_s
+
+		INC	BYTE PTR DS:[background_color]
+
+		JMP	control_loop_end
+
+	; =============================== B ======================================;
+	
+	control_s:
+		CMP	AL, scan_s
+		JNE	control_d
+
+		DEC	BYTE PTR DS:[background_color]
+
+		JMP	control_loop_end
+
+	; =============================== B ======================================;
+	
+	control_d:
+		CMP	AL, scan_d
+		JNE	control_a
+
+		INC	BYTE PTR DS:[point_color]
+
+		JMP	control_loop_end
+
+	; =============================== B ======================================;
+	
+	control_a:
+		CMP	AL, scan_a
+		JNE	control_arrow_up
+
+		DEC	BYTE PTR DS:[point_color]
+
+		JMP	control_loop_end
+
+	; ============================= ARROW UP =================================;
+	
+	control_arrow_up:
+		CMP	AL, scan_arrow_up
+		JNE	control_arrow_down
+
+		MOV	SI, OFFSET ellipse_height
+		CALL	increment_axis
+
+		JMP	control_loop_end
+
+	; =========================== ARROW DOWN =================================;
+	
+	control_arrow_down:
+		CMP	AL, scan_arrow_down
+		JNE	control_arrow_left
+
+		MOV	SI, OFFSET ellipse_height
+		CALL	decrement_axis
+
+		JMP	control_loop_end
+	; ============================= ARROW UP =================================;
+	
+	control_arrow_left:
+		CMP	AL, scan_arrow_left
+		JNE	control_arrow_right
+
+		MOV	SI, OFFSET ellipse_width
+		CALL	decrement_axis
+
+		JMP	control_loop_end
+
+	; =========================== ARROW DOWN =================================;
+	
+	control_arrow_right:
+		CMP	AL, scan_arrow_right
+		JNE	control_loop_end
+
+		MOV	SI, OFFSET ellipse_width
+		CALL	increment_axis
+
+		JMP	control_loop_end
+
+
+	; ========================= END CONTROL LOOP =============================;
+
+	control_loop_end:
+		JMP	control_loop
+
+control_exit:
 	CALL	set_text_mode
 
 	CALL	EXIT
-
-
-
-main_parse_buffer:
-
-	; PARSE INPUT BUFFER ;
-
-	MOV	CX, AX			; set string length
-	MOV	SI, OFFSET buff + 2	; set pointer to first character
-	call 	parse_input
-	
-
-	; GET LENGTH ;
-	
-	MOV	SI, OFFSET nfirst
-	CALL	get_length
-
-	MOV	SI, OFFSET oper
-	CALL	get_length
-
-	MOV	SI, OFFSET nsecond
-	CALL	get_length
-
-	; GET VALUE ;
-	
-	MOV	SI, OFFSET nfirst
-	CALL	get_value
-
-
-	MOV	SI, OFFSET nsecond
-	CALL	get_value
-
-	CALL	print_nl
-
-	; =[CALCULATIONS]============ ;
-
-	CALL	calculate
-
-	CALL	print_result
-
-	; END PROGRAM ;
-
-	MOV	AL,0	; set value that OS return
-	MOV	AH,4CH 	; value for ending program
-	INT	21h	; DOS interrupt
 
 
 ;=== PROCEDURES ===============================================;
@@ -366,325 +426,6 @@ trim_buffer PROC
 	RET
 trim_buffer ENDP
 
-
-; [USAGE]:
-; 	CALL print_result
-; [NOTE]:
-; 	this function print result offset as 
-; 	string translated to polish
-print_result PROC
-	PUSH	AX
-	MOV	AX, WORD PTR DS:[result]
-	CALL	print_number
-	POP	AX
-	RET
-print_result ENDP
-
-print_number PROC
-	PUSH	AX
-
-	; NEGATIVE NUMBER ;
-	
-	print_negative:
-		CMP	AX, 0
-		JGE	print_0_19
-		
-		MOV	CX, -1d
-		IMUL	CX
-
-		MOV	DX, OFFSET ominus + 2
-		CALL	print_single_number
-		
-	; NUMBER FROM 0 TO 19 ;
-
-	print_0_19:
-		CMP	AL, 0
-		JNE	print_1
-		MOV	DX, OFFSET vzero + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_1:
-		
-		CMP	AL, 1
-		JNE	print_2
-		MOV	DX, OFFSET vone + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_2:
-		
-		CMP	AL, 2
-		JNE	print_3
-		MOV	DX, OFFSET vtwo + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_3:
-		
-		CMP	AL, 3
-		JNE	print_4
-		MOV	DX, OFFSET vthree + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_4:
-		
-		CMP	AL, 4
-		JNE	print_5
-		MOV	DX, OFFSET vfour + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_5:
-		
-		CMP	AL, 5
-		JNE	print_6
-		MOV	DX, OFFSET vfive + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_6:
-		
-		CMP	AL, 6
-		JNE	print_7
-		MOV	DX, OFFSET vsix + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_7:
-		
-		CMP	AL, 7
-		JNE	print_8
-		MOV	DX, OFFSET vseven + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_8:
-		
-		CMP	AL, 8
-		JNE	print_9
-		MOV	DX, OFFSET veight + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_9:
-		
-		CMP	AL, 9
-		JNE	print_10
-		MOV	DX, OFFSET vnine + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_10:
-		
-		CMP	AL, 10d
-		JNE	print_11
-		MOV	DX, OFFSET vten + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_11:
-		
-		CMP	AL, 11d
-		JNE	print_12
-		MOV	DX, OFFSET veleven + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_12:
-		
-		CMP	AL, 12d
-		JNE	print_13
-		MOV	DX, OFFSET vtwelve + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_13:
-		
-		CMP	AL, 13d
-		JNE	print_14
-		MOV	DX, OFFSET vthirteen + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_14:
-		
-		CMP	AL, 14
-		JNE	print_15
-		MOV	DX, OFFSET vfourteen + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_15:
-
-		CMP	AL, 15
-		JNE	print_16
-		MOV	DX, OFFSET vfifteen + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_16:
-		
-		CMP	AL, 16
-		JNE	print_17
-		MOV	DX, OFFSET vsixteen + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_17:
-		
-		CMP	AL, 17
-		JNE	print_18
-		MOV	DX, OFFSET vseventeen + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_18:
-		
-		CMP	AL, 18
-		JNE	print_19
-		MOV	DX, OFFSET veighteen + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-		print_19:
-		
-		CMP	AL, 19
-		JNE	print_20_99
-		MOV	DX, OFFSET vnineteen + 2
-		CALL	print_single_number
-		JMP	print_number_end
-
-
-	; NUMBER FROM 20 TO 99 ;
-
-	print_20_99:
-		; MOV	BX, AX
-		; [NOTE]:
-		; 	DIV instruction in this case 
-		; 	operate on AX register
-		; 	AL := store result of integer division
-		; 	AH := store rest of integer division (modulo)
-
-		PUSH	BX
-		
-		MOV	BL, 10
-		DIV	BL
-
-		CMP	AL, 0d
-		JE	print_number_end
-
-		XOR	BX, BX
-		MOV	BL, AL
-		MOV	AL, AH
-		MOV	AH, BL
-
-		POP	BX
-
-		CMP	AH, 2
-		JNE	print_30
-		MOV	DX, OFFSET vtwenty + 2
-		CALL	print_single_number
-		CMP	AL, 0
-		JNE	print_1
-		JE	print_number_end
-
-		print_30:
-		
-		CMP	AH, 3
-		JNE	print_40
-		MOV	DX, OFFSET vthirty + 2
-		CALL	print_single_number
-		CMP	AL, 0
-		JNE	print_1
-		JE	print_number_end
-
-		print_40:
-		
-		CMP	AH, 4
-		JNE	print_50
-		MOV	DX, OFFSET vfourty + 2
-		CALL	print_single_number
-		CMP	AL, 0
-		JNE	print_1
-		JE	print_number_end
-
-		print_50:
-		
-		CMP	AH, 5
-		JNE	print_60
-		MOV	DX, OFFSET vfifty + 2
-		CALL	print_single_number
-		CMP	AL, 0
-		JNE	print_1
-		JE	print_number_end
-
-		print_60:
-		
-		CMP	AH, 6
-		JNE	print_70
-		MOV	DX, OFFSET vsixty + 2
-		CALL	print_single_number
-		CMP	AL, 0
-		JNE	print_1
-		JE	print_number_end
-
-		print_70:
-		
-		CMP	AH, 7
-		JNE	print_80
-		MOV	DX, OFFSET vseventy + 2
-		CALL	print_single_number
-		CMP	AL, 0
-		JNE	print_1
-		JE	print_number_end
-
-		print_80:
-		
-		CMP	AH, 8
-		JNE	print_90
-		MOV	DX, OFFSET veighty + 2
-		CALL	print_single_number
-		CMP	AL, 0
-		JNE	print_1
-		JE	print_number_end
-
-		print_90:
-		
-		CMP	AH, 9
-		JNE	print_30
-		MOV	DX, OFFSET vnineteen + 2
-		CALL	print_single_number
-		CMP	AL, 0
-		JNE	print_1
-		JE	print_number_end
-
-
-	; FINISH PRINTING ;
-	print_number_end:
-
-		POP	AX
-		RET	
-print_number ENDP
-
-; [USAGE]
-; 	MOV	DX, OFFSET vnumber + 2
-; 	CALL	print_single_number
-; [DESC]:
-; 	this function print single word digit to 
-; 	standard output
-print_single_number PROC
-	PUSH	AX
-
-	MOV	AX, SEG DATA_SEG
-	CALL	print
-	CALL	print_space
-
-	POP	AX
-	RET
-print_single_number ENDP
-
 ; [USAGE]:
 ; 	MOV  SI, OFFSET source_offset
 ; 	CALL get_length
@@ -735,82 +476,6 @@ get_length PROC
 
 get_length ENDP
 
-; [USAGE]:
-; 	MOV  SI, OFFSET source_offset
-; 	CALL get_value
-; [NOTE]:
-; 	this procedure parse int value from given string;
-; [Attention!]
-; 	this procedure require STRING structure defined 
-; 	at the begginnig of this file 
-get_value PROC
-	PUSH 	SI
-	PUSH 	DI
-	PUSH	AX
-	
-	XOR	AX, AX	; clear AX
-
-	; CHECK NUMBERS ;
-
-	MOV	DI, OFFSET vzero
-	CALL	check_number
-	JE	get_value_end
-
-	MOV	DI, OFFSET vone
-	CALL	check_number
-	JE	get_value_end
-
-	MOV	DI, OFFSET vtwo
-	CALL	check_number
-	JE	get_value_end
-
-	MOV	DI, OFFSET vthree
-	CALL	check_number
-	JE	get_value_end
-
-	MOV	DI, OFFSET vfour
-	CALL	check_number
-	JE	get_value_end
-	
-	MOV	DI, OFFSET vfive
-	CALL	check_number
-	JE	get_value_end
-
-	MOV	DI, OFFSET vsix
-	CALL	check_number
-	JE	get_value_end
-
-	MOV	DI, OFFSET vseven
-	CALL	check_number
-	JE	get_value_end
-
-	MOV	DI, OFFSET veight
-	CALL	check_number
-	JE	get_value_end
-
-	MOV	DI, OFFSET vnine
-	CALL	check_number
-	JE	get_value_end
-
-	get_value_invalid:
-		POP	AX
-		POP	DI
-		POP	SI
-
-		MOV	DX, OFFSET error_parse_number
-		CALL 	throw_exception
-		
-		RET
-
-	get_value_end:
-
-		MOV	BYTE PTR DS:[SI], AL	; set string value
-
-		POP	AX
-		POP	DI
-		POP	SI
-		RET
-get_value ENDP
 
 ; [USAGE]:
 ; 	MOV  SI, OFFSET source_offset
@@ -981,6 +646,53 @@ draw_symetric_points PROC
 	RET
 draw_symetric_points ENDP
 
+validate_ellipse_params PROC
+	PUSH	AX
+
+	
+	validate_width_max:
+		MOV	AX, WORD PTR DS:[ellipse_width]
+
+		CMP	AX, screen_max_x	; if less than screen_max_x
+		JLE	validate_width_min	; jump to validate min
+
+		MOV	WORD PTR DS:[ellipse_width], screen_max_x - 1
+
+		JMP	validate_height_max
+
+	validate_width_min:
+		CMP	AX, screen_min_x
+		JGE	validate_height_max
+		
+		MOV	WORD PTR DS:[ellipse_width], screen_min_x
+
+		JMP	validate_height_max
+
+	validate_height_max:
+		MOV	AX, WORD PTR DS:[ellipse_height]
+
+		CMP	AX, screen_max_y	; if less than screen_max_x
+		JLE	validate_height_min	; jump to validate min
+
+		MOV	WORD PTR DS:[ellipse_height], screen_max_y - 1
+
+		JMP	validate_height_min
+		
+	
+	validate_height_min:
+		CMP	AX, screen_min_y
+		JGE	validate_end
+
+		MOV	WORD PTR DS:[ellipse_height], screen_min_y
+
+		JMP	validate_end
+
+
+	validate_end:
+		POP	AX
+		RET
+validate_ellipse_params ENDP
+
 ; [USAGE]:
 ; 	MOV	WORD PTR DS:[ellipse_width], width_value
 ; 	MOV	WORD PTR DS:[ellipse_height], height_value
@@ -992,6 +704,8 @@ draw_ellipse	PROC
 	PUSH	CX
 
 	; ========================== SETUP CONSTANTS ================================= ;
+
+	CALL	validate_ellipse_params
 
 	XOR	AX, AX
 	MOV	AX, WORD PTR DS:[ellipse_width]
@@ -1079,6 +793,29 @@ draw_ellipse	PROC
 	RET
 draw_ellipse	ENDP
 
+; [USAGE]:
+;	MOV	BYTE PTR DS:[background_color], background_color_value
+;	CALL	clean_screen
+;
+clean_screen PROC
+	PUSH	AX
+	PUSH	ES
+
+	MOV	AX, 0A000h	; offset to video mapped memory
+	MOV	ES, AX		; move mapped offset to ES
+	MOV	AX, 0		; setup (x,y)=(0,0)
+	MOV	DI, AX		; load coords to DI
+
+	MOV	AL, BYTE PTR DS:[background_color]	; SETUP COLOR
+
+	MOV	CX, screen_max_y * screen_max_x		; setup max coords value
+
+	REP	STOSB	; point the whole screen with grey
+			; store AL value as whole string
+	POP	ES
+	POP	AX
+	RET
+clean_screen ENDP
 calc_ellipse_y PROC
 	FINIT	; reset fpu
 
@@ -1127,67 +864,23 @@ calc_ellipse_x PROC
 	RET
 calc_ellipse_x ENDP
 
-calculate PROC
-	PUSH	AX
-	PUSH	BX
-	PUSH	CX
+; [USAGE]:
+; 	MOV si, OFFSET source_axis
+; 	CALL increment_axis
+increment_axis PROC
+	INC	WORD PTR DS:[SI]
+	INC	WORD PTR DS:[SI]
+	RET
+increment_axis ENDP
 
-	XOR	AX, AX
-	XOR	BX, BX
-	
-	MOV	AL, BYTE PTR DS:[nfirst]	; get first value
-	MOV	BL, BYTE PTR DS:[nsecond]	; get second value
-
-	MOV	SI, OFFSET oper			; get operator
-	
-	calculate_add:
-
-		MOV	DI, OFFSET oplus	; get plus string offset
-		CALL	cmp_str			; check if operator is plus
-		JNE	calculate_sub
-		
-		; COUNT SUM ;
-
-		ADD	AX, BX
-		MOV	WORD PTR DS:[result], AX
-		JMP	calculate_end
-
-	calculate_sub:
-	
-		MOV	DI, OFFSET ominus	; get minus string offset
-		CALL	cmp_str			; check if operator is minus
-		JNE	calculate_mult
-	
-		; COUNT SUBSTRACTION ;
-
-		SUB	AX, BX
-		MOV	WORD PTR DS:[result], AX
-		JMP	calculate_end
-
-	calculate_mult:
-
-		MOV	DI, OFFSET otimes	; get multiplication operator
-		CALL	cmp_str			; check if operator is multiplication sign
-		JNE	calculate_err
-
-		MOV	CX, BX			; move second value to CX
-		MUL	CX			; multiply by sign
-
-		MOV	WORD PTR DS:[result], AX
-		JMP	calculate_end
-
-	calculate_err:
-		MOV	DX, OFFSET error_parse_operator
-		CALL	throw_exception
-		RET
-
-	calculate_end:
-
-		POP	CX
-		POP	BX
-		POP	AX
-		RET
-calculate ENDP
+; [USAGE]:
+; 	MOV si, OFFSET source_axis
+; 	CALL decrement_axis
+decrement_axis PROC
+	DEC	WORD PTR DS:[SI]
+	DEC	WORD PTR DS:[SI]
+	RET
+decrement_axis ENDP
 
 ; [USAGE]:
 ; 	MOV si, OFFSET source_string
