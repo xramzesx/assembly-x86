@@ -2,7 +2,7 @@
 
 Simple calculator for numbers from range [0,9], typed in polish
 
-![dosbox_calc](https://github.com/xramzesx/assembly-x86/assets/46059547/01783593-be36-4561-87eb-3201debf7023)
+![dosbox_calc](https://github.com/xramzesx/assembly-x86/assets/46059547/363a2b58-39e3-43c9-a6a8-ad53bfd6a966)
 
 ## Original assignment (in polish)
 
