@@ -2,11 +2,10 @@
 This repository contains files and projects related to the Assembly x86 course at AGH University of Science and Technology.
 
 ### Task 1
-![dosbox_calc](https://github.com/xramzesx/assembly-x86/assets/46059547/852953e9-33fa-4ab2-83d2-7ac974315c05)  
+![dosbox_calc](https://github.com/xramzesx/assembly-x86/assets/46059547/3935f2a9-85f7-4f3f-90c1-d91eaf7bfc85)
 
 ### Task 2
-![dosbox_ellipse_homepage](https://github.com/xramzesx/assembly-x86/assets/46059547/e882b5fa-e611-4067-b263-a836bbf8440e)
-
+![dosbox_ellipse_homepage](https://github.com/xramzesx/assembly-x86/assets/46059547/fae261bd-fd6e-4422-99ec-56c8ed03d7ce)
 
 ## Setup
 To build and run these projects you need to use DOSBox, an x86 emulator.
