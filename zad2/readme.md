@@ -2,8 +2,7 @@
 
 Ellipse drawing program in VGA 320x200 256-color mode, which uses keyboard input to control size and color of the ellipse and the background. 
 
-![dosbox_ellipse](https://github.com/xramzesx/assembly-x86/assets/46059547/81e45a84-6864-4d9b-83cc-8e30d447dea6)
-
+![dosbox_ellipse](https://github.com/xramzesx/assembly-x86/assets/46059547/1b48af56-617d-45ef-a574-af6e997b546e)
 
 ## Original assignment (in polish)
 
